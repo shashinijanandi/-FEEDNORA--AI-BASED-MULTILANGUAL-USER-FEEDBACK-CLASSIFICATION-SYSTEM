@@ -42,20 +42,20 @@ The platform follows a **modular, microservice-based architecture** to ensure sc
 Programming Languages
    -Python
    
-AI & Machine Learning
+# AI & Machine Learning
    -PyTorch
    -Hugging Face Transformers
    -Sentence Transformers
    -Scikit-learn
 
-Models & Algorithms
+# Models & Algorithms
     -BERT / RoBERTa / XLM-R
     -Attention-based Neural Networks
     -SHAP / Captum (Explainability)
     -BERTopic / HDBSCAN
     -GPT / T5 (Response Generation)
 
-Backend & APIs
+# Backend & APIs
     -REST APIs
     -Java Spring Boot / Node.js (optional)
 
