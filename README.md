@@ -35,30 +35,32 @@ The platform follows a **modular, microservice-based architecture** to ensure sc
 7. Results are stored and visualized on the dashboard
 
 ### Architectural Diagram
->  Add your system diagram image here
+
+><img width="1536" height="1024" alt="ChatGPT Image Jan 7, 2026, 01_04_08 AM" src="https://github.com/user-attachments/assets/add16a0e-0ed8-4917-a506-b0898deb7cea" />
+  
 
 
 ## Dependencies
-Programming Languages
+### Programming Languages
    -Python
    
-# AI & Machine Learning
+### AI & Machine Learning
    -PyTorch
    -Hugging Face Transformers
    -Sentence Transformers
    -Scikit-learn
 
-# Models & Algorithms
+### Models & Algorithms
     -BERT / RoBERTa / XLM-R
     -Attention-based Neural Networks
     -SHAP / Captum (Explainability)
     -BERTopic / HDBSCAN
     -GPT / T5 (Response Generation)
 
-# Backend & APIs
+### Backend & APIs
     -REST APIs
-    -Java Spring Boot / Node.js (optional)
+    -Node.js
 
-Frontend
+### Frontend
      -React.js
     -Dashboard & data visualization libraries
