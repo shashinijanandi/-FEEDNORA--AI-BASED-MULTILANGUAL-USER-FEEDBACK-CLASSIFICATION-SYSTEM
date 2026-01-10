@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Feedback Sentiment Analysis</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+            max-width: 700px;
+            width: 100%;
+            padding: 40px;
+        }
+
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+            text-align: center;
+        }
+
+        .subtitle {
+            text-align: center;
+            color: #666;
+            margin-bottom: 30px;
+            font-size: 14px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            color: #333;
+            font-weight: 500;
+            font-size: 14px;
+        }
+
+        textarea {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #ddd;
+            border-radius: 5px;
+            font-size: 14px;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            resize: vertical;
+            min-height: 100px;
+            transition: border-color 0.3s;
+        }
+
+        textarea:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        button {
+            width: 100%;
+            padding: 12px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 5px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(102, 126, 234, 0.4);
+        }
+
+        button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .results {
+            margin-top: 30px;
+            display: none;
+        }
+
+        .results.show {
+            display: block;
+            animation: slideIn 0.3s ease;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .result-item {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 5px;
+            margin-bottom: 15px;
+            border-left: 4px solid #667eea;
+        }
+
+        .result-label {
+            color: #666;
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 8px;
+        }
+
+        .result-value {
+            font-size: 24px;
+            font-weight: bold;
+            color: #333;
+        }
+
+        .sentiment-badge {
+            display: inline-block;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-weight: 600;
+            margin-top: 8px;
+        }
+
+        .sentiment-happiness {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .sentiment-sadness {
+            background: #cce5ff;
+            color: #004085;
+        }
+
+        .sentiment-anger {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .sentiment-disgust {
+            background: #e2e3e5;
+            color: #383d41;
+        }
+
+        .sentiment-fear {
+            background: #fff3cd;
+            color: #856404;
+        }
+
+        .sentiment-surprise {
+            background: #d1ecf1;
+            color: #0c5460;
+        }
+
+        .response-box {
+            background: white;
+            padding: 15px;
+            border-radius: 5px;
+            border: 1px solid #ddd;
+            margin-top: 10px;
+            line-height: 1.6;
+        }
+
+        .loading {
+            display: none;
+            text-align: center;
+            margin: 20px 0;
+        }
+
+        .spinner {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .error {
+            background: #f8d7da;
+            color: #721c24;
+            padding: 12px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+            display: none;
+        }
+
+        .error.show {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎯 Feedback Sentiment Analyzer</h1>
+        <p class="subtitle">Analyze customer feedback and get personalized responses</p>
+
+        <div class="error" id="error"></div>
+
+        <div class="form-group">
+            <label for="feedback">Enter Customer Feedback</label>
+            <textarea id="feedback" placeholder="Type your feedback here..."></textarea>
+        </div>
+
+        <button id="analyzeBtn" onclick="analyzeFeedback()">Analyze Feedback</button>
+
+        <div class="loading" id="loading">
+            <div class="spinner"></div>
+            <p>Analyzing feedback...</p>
+        </div>
+
+        <div class="results" id="results">
+            <div class="result-item">
+                <div class="result-label">Detected Sentiment</div>
+                <div class="sentiment-badge" id="sentimentBadge">
+                    <span id="sentimentResult"></span>
+                </div>
+            </div>
+
+            <div class="result-item">
+                <div class="result-label">Generated Response</div>
+                <div class="response-box" id="responseBox"></div>
+            </div>
+
+            <div class="result-item">
+                <div class="result-label">Confidence Score</div>
+                <div class="result-value" id="confidence"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const sentimentEmojis = {
+            'happiness': '😊',
+            'sadness': '😢',
+            'anger': '😠',
+            'disgust': '🤢',
+            'fear': '😨',
+            'surprise': '😲'
+        };
+
+        const sentimentResponses = {
+            'happiness': '✨ Thank you! We\'re delighted you loved our service. Your satisfaction is our success!',
+            'sadness': '💙 We understand your concern. Our team is here to help and support you.',
+            'anger': '🙏 We sincerely apologize. We take your feedback seriously and will improve.',
+            'disgust': '🛠️ We\'re sorry for the inconvenience. We\'ll work on fixing this issue.',
+            'fear': '🔒 Thank you for sharing your concern. We\'ll investigate and ensure your safety.',
+            'surprise': '👍 Thanks for your feedback! We appreciate your input.'
+        };
+
+        async function analyzeFeedback() {
+            const feedback = document.getElementById('feedback').value.trim();
+            const errorDiv = document.getElementById('error');
+            const resultsDiv = document.getElementById('results');
+            const loadingDiv = document.getElementById('loading');
+
+            errorDiv.classList.remove('show');
+            resultsDiv.classList.remove('show');
+
+            if (feedback === '') {
+                errorDiv.textContent = '⚠️ Please enter some feedback to analyze';
+                errorDiv.classList.add('show');
+                return;
+            }
+
+            loadingDiv.style.display = 'block';
+            document.getElementById('analyzeBtn').disabled = true;
+
+            try {
+                const response = await fetch('http://localhost:5000/predict', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ feedback: feedback })
+                });
+
+                if (!response.ok) {
+                    throw new Error('Server error: ' + response.status);
+                }
+
+                const data = await response.json();
+                displayResults(data);
+            } catch (error) {
+                errorDiv.textContent = '❌ Error: ' + error.message + '. Make sure the backend server is running on http://localhost:5000';
+                errorDiv.classList.add('show');
+                console.error('Error:', error);
+            } finally {
+                loadingDiv.style.display = 'none';
+                document.getElementById('analyzeBtn').disabled = false;
+            }
+        }
+
+        function displayResults(data) {
+            const sentiment = data.sentiment.toLowerCase();
+            const emoji = sentimentEmojis[sentiment] || '📊';
+            const response = sentimentResponses[sentiment] || 'Thank you for your feedback!';
+
+            document.getElementById('sentimentResult').innerHTML = `${emoji} ${sentiment.charAt(0).toUpperCase() + sentiment.slice(1)}`;
+            document.getElementById('sentimentBadge').className = `sentiment-badge sentiment-${sentiment}`;
+            document.getElementById('responseBox').textContent = response;
+            document.getElementById('confidence').textContent = (data.confidence * 100).toFixed(1) + '%';
+
+            document.getElementById('results').classList.add('show');
+        }
+
+        // Allow Enter key to submit
+        document.getElementById('feedback').addEventListener('keydown', function(event) {
+            if (event.ctrlKey && event.key === 'Enter') {
+                analyzeFeedback();
+            }
+        });
+    </script>
+</body>
+</html>
