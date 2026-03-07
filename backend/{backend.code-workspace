@@ -1,0 +1,22 @@
+{
+	"folders": [
+		{
+			"path": "../{backend"
+		},
+		{
+			"path": "../ai_models"
+		},
+		{
+			"path": "."
+		},
+		{
+			"path": "../database"
+		},
+		{
+			"path": "../docs"
+		},
+		{
+			"path": "../frontend"
+		}
+	]
+}
