@@ -137,13 +137,47 @@ def get_trending_topics(feedback_texts: List[str], n_topics: int = 8) -> List[Di
 # ─── Singleton ────────────────────────────────────────────────────────────────
 class TopicModelingService:
     def __init__(self):
-        logger.info("Topic Modeling Service initialized (keyword-LDA hybrid)")
+        logger.info("Topic Modeling Service initialized")
+        try:
+            from app.services.feednora_service import get_feednora_service
+            self._feednora = get_feednora_service()
+            if self._feednora._loaded:
+                logger.info("FEEDNORA pipeline active ✅")
+            else:
+                logger.warning("FEEDNORA models missing — keyword fallback")
+                self._feednora = None
+        except Exception as e:
+            logger.error("FEEDNORA error: %s", e)
+            self._feednora = None
 
     def analyze_single(self, text: str) -> List[Dict]:
+        if self._feednora and self._feednora._loaded:
+            r = self._feednora.assign_topic(text)
+            return [{
+                "topic_id":    0,
+                "label":       r["topic_name"],
+                "key":         r["topic_name"].lower().replace(" ","_"),
+                "keywords":    [],
+                "probability": r["confidence"],
+            }]
         return extract_topics_from_text(text, top_n=3)
 
     def analyze_batch(self, texts: List[str]) -> List[Dict]:
+        if self._feednora and self._feednora._loaded:
+            stats = self._feednora.get_topic_stats(texts)
+            return [{
+                "topic_id":       i+1,
+                "label":          s["topic_name"],
+                "key":            s["topic_name"].lower().replace(" ","_"),
+                "keywords":       [],
+                "document_count": s["count"],
+                "percentage":     s["percentage"],
+                "trend":          "stable",
+                "coherence_score": 0.75,
+            } for i,s in enumerate(stats)]
         return get_trending_topics(texts)
+
+    
 
 
 _topic_service: Optional[TopicModelingService] = None

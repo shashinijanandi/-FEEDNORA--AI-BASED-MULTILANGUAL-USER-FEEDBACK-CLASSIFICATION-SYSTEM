@@ -28,8 +28,10 @@ async def lifespan(app: FastAPI):
     # Pre-load AI models
     from app.services.ai_service import get_sentiment_service
     from app.services.topic_service import get_topic_service
+    from app.services.feednora_service import get_feednora_service
     get_sentiment_service()
     get_topic_service()
+    get_feednora_service()  
     logger.info("✅ AI services initialized")
 
     yield

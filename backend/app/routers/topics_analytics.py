@@ -149,3 +149,28 @@ async def get_user_analytics(db: Session = Depends(get_db)):
         "active_users": active_users,
         "inactive_users": total_users - active_users,
     }
+
+@topics_router.post("/feednora/analyze",
+    summary="FEEDNORA: Assign topics to feedback texts",
+    tags=["Topic Modeling"])
+async def feednora_analyze(
+    request: dict,
+    current_user=Depends(get_current_active_user),
+):
+    """
+    Body: { "texts": ["feedback text 1", "feedback text 2"] }
+    Returns FEEDNORA topic assignments.
+    """
+    from app.services.feednora_service import get_feednora_service
+    from fastapi import HTTPException
+    texts = request.get("texts", [])
+    if not texts or not isinstance(texts, list):
+        raise HTTPException(status_code=400,
+            detail="Body must be JSON: {'texts': ['...', '...']}" )
+    svc = get_feednora_service()
+    return {
+        "total":       len(texts),
+        "assignments": svc.analyze_batch(texts),
+        "topic_stats": svc.get_topic_stats(texts),
+    }
+

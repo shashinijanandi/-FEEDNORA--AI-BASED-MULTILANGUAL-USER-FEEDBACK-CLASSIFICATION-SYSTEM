@@ -27,6 +27,12 @@ backend/.env
 # AI Models (large binary files — use Git LFS or store separately)
 ai_models/*.pkl
 
+# topic modeling model files — too large for Git
+backend/ai_models/centroids.pkl
+backend/ai_models/cluster_map.pkl
+backend/ai_models/tfidf.pkl
+backend/ai_models/sentence_model/
+
 # Database
 *.db
 *.sqlite3
