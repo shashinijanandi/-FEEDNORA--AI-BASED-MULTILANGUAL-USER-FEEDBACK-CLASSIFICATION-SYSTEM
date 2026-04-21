@@ -1,7 +1,0 @@
-{
-  "text_column": "text",
-  "threshold_high": 0.7,
-  "threshold_medium": 0.4,
-  "model_name": "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2",
-  "n_topics": 1089
-}
