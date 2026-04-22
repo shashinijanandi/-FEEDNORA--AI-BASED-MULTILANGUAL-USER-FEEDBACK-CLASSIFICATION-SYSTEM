@@ -1,76 +1,64 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
-from typing import List, Optional
-
+from typing import List
 from app.database import get_db
-from app.models.user import User, UserRole
-from app.schemas.user import UserResponse, UserUpdate, PasswordChange
-from app.auth.password import verify_password, hash_password
-from app.dependencies import get_current_active_user, require_admin
+from app.models.models import User
+from app.schemas.schemas import UserOut, UserRoleUpdate
+from app.dependencies import get_current_user, require_admin
 
 router = APIRouter(prefix="/users", tags=["Users"])
 
 
-@router.get("/me", response_model=UserResponse)
-async def get_profile(current_user: User = Depends(get_current_active_user)):
-    return current_user
-
-
-@router.put("/me", response_model=UserResponse)
-async def update_profile(
-    payload: UserUpdate,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_user),
-):
-    if payload.username and payload.username != current_user.username:
-        if db.query(User).filter(User.username == payload.username).first():
-            raise HTTPException(status_code=400, detail="Username already taken")
-        current_user.username = payload.username
-    if payload.full_name is not None:
-        current_user.full_name = payload.full_name
-    db.commit()
-    db.refresh(current_user)
-    return current_user
-
-
-@router.post("/me/change-password")
-async def change_password(
-    payload: PasswordChange,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_user),
-):
-    if not verify_password(payload.current_password, current_user.hashed_password):
-        raise HTTPException(status_code=400, detail="Current password is incorrect")
-    current_user.hashed_password = hash_password(payload.new_password)
-    db.commit()
-    return {"message": "Password updated successfully"}
-
-
-@router.get("/", response_model=List[UserResponse], dependencies=[Depends(require_admin)])
-async def list_users(
+@router.get("/", response_model=List[UserOut])
+def list_users(
     page: int = Query(1, ge=1),
-    page_size: int = Query(20, ge=1, le=100),
-    db: Session = Depends(get_db),
+    size: int = Query(50, ge=1, le=100),
+    db:   Session = Depends(get_db),
+    _:    User = Depends(require_admin),
 ):
-    users = db.query(User).offset((page - 1) * page_size).limit(page_size).all()
-    return users
+    return db.query(User).order_by(User.created_at.desc()).offset((page-1)*size).limit(size).all()
 
 
-@router.put("/{user_id}/role", dependencies=[Depends(require_admin)])
-async def update_role(user_id: int, role: UserRole, db: Session = Depends(get_db)):
+@router.get("/{user_id}", response_model=UserOut)
+def get_user(
+    user_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    if current_user.id != user_id and current_user.role.value != "admin":
+        raise HTTPException(status_code=403, detail="Access denied")
     user = db.query(User).filter(User.id == user_id).first()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
-    user.role = role
+    return user
+
+
+@router.put("/{user_id}/role", response_model=UserOut)
+def update_role(
+    user_id: int,
+    payload: UserRoleUpdate,
+    db: Session = Depends(get_db),
+    _:  User = Depends(require_admin),
+):
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    user.role = payload.role
     db.commit()
-    return {"message": f"Role updated to {role}"}
+    db.refresh(user)
+    return user
 
 
-@router.put("/{user_id}/deactivate", dependencies=[Depends(require_admin)])
-async def deactivate_user(user_id: int, db: Session = Depends(get_db)):
+@router.delete("/{user_id}/deactivate", response_model=UserOut)
+def deactivate_user(
+    user_id: int,
+    db: Session = Depends(get_db),
+    _:  User = Depends(require_admin),
+):
     user = db.query(User).filter(User.id == user_id).first()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
     user.is_active = False
     db.commit()
-    return {"message": "User deactivated"}
+    db.refresh(user)
+    return user

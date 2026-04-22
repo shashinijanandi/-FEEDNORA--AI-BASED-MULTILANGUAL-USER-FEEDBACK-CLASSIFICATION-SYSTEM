@@ -1,60 +1,58 @@
-import { Routes, Route, Navigate } from 'react-router-dom'
-import { useAuth } from './context/AuthContext'
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import { AuthProvider, useAuth } from './context/AuthContext'
 import Layout from './components/Layout'
-import LoginPage from './pages/Login'
-import RegisterPage from './pages/Register'
+import Login from './pages/Login'
+import Register from './pages/Register'
 import Dashboard from './pages/Dashboard'
-import FeedbackPage from './pages/FeedbackSubmit'
-import FeedbackHistoryPage from './pages/FeedbackHistory'
-import TopicsPage from './pages/Topics'
-import AnalyticsPage from './pages/Analytics'
-import AdminPage from './pages/Admin'
-import ProfilePage from './pages/Profile'
+import SubmitFeedback from './pages/SubmitFeedback'
+import TopicModeling from './pages/TopicModeling'
+import ResponseGeneration from './pages/ResponseGeneration'
+import EvaluationMetrics from './pages/EvaluationMetrics'
+import Analytics from './pages/Analytics'
+import Settings from './pages/Settings'
 
-function ProtectedRoute({ children, adminOnly = false }) {
+function ProtectedRoute({ children }) {
   const { user, loading } = useAuth()
-  if (loading) return <div className="min-h-screen flex items-center justify-center"><Spinner /></div>
+  if (loading) return (
+    <div className="flex items-center justify-center h-screen bg-surface-900">
+      <div className="w-8 h-8 border-2 border-brand-500/30 border-t-brand-500 rounded-full animate-spin" />
+    </div>
+  )
   if (!user) return <Navigate to="/login" replace />
-  if (adminOnly && user.role !== 'admin') return <Navigate to="/dashboard" replace />
   return children
 }
 
-function Spinner() {
+function AppRoutes() {
+  const { user } = useAuth()
   return (
-    <div className="w-10 h-10 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin" />
+    <Routes>
+      <Route path="/login"    element={user ? <Navigate to="/" /> : <Login />} />
+      <Route path="/register" element={user ? <Navigate to="/" /> : <Register />} />
+      <Route path="/*" element={
+        <ProtectedRoute>
+          <Layout>
+            <Routes>
+              <Route path="/"           element={<Dashboard />} />
+              <Route path="/submit"     element={<SubmitFeedback />} />
+              <Route path="/topics"     element={<TopicModeling />} />
+              <Route path="/responses"  element={<ResponseGeneration />} />
+              <Route path="/evaluation" element={<EvaluationMetrics />} />
+              <Route path="/analytics"  element={<Analytics />} />
+              <Route path="/settings"   element={<Settings />} />
+            </Routes>
+          </Layout>
+        </ProtectedRoute>
+      } />
+    </Routes>
   )
 }
 
 export default function App() {
-  const { user, loading } = useAuth()
-
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <Spinner />
-      </div>
-    )
-  }
-
   return (
-    <Routes>
-      {/* Public */}
-      <Route path="/login" element={user ? <Navigate to="/dashboard" /> : <LoginPage />} />
-      <Route path="/register" element={user ? <Navigate to="/dashboard" /> : <RegisterPage />} />
-
-      {/* Protected */}
-      <Route path="/" element={<ProtectedRoute><Layout /></ProtectedRoute>}>
-        <Route index element={<Navigate to="/dashboard" />} />
-        <Route path="dashboard" element={<Dashboard />} />
-        <Route path="feedback/submit" element={<FeedbackPage />} />
-        <Route path="feedback/history" element={<FeedbackHistoryPage />} />
-        <Route path="topics" element={<TopicsPage />} />
-        <Route path="analytics" element={<AnalyticsPage />} />
-        <Route path="profile" element={<ProfilePage />} />
-        <Route path="admin" element={<ProtectedRoute adminOnly><AdminPage /></ProtectedRoute>} />
-      </Route>
-
-      <Route path="*" element={<Navigate to="/dashboard" />} />
-    </Routes>
+    <BrowserRouter>
+      <AuthProvider>
+        <AppRoutes />
+      </AuthProvider>
+    </BrowserRouter>
   )
 }

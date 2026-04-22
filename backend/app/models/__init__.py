@@ -1,9 +1,7 @@
-from app.models.user import User, UserRole
-from app.models.feedback import Feedback, SentimentLabel, FeedbackStatus
-from app.models.topic import Topic, TopicTrend
+from app.models.models import User, Feedback, Topic, TopicTimeSeries, AnalyticsSnapshot
+from app.models.models import UserRole, SentimentLabel, ApprovalStatus, TrendDirection
 
 __all__ = [
-    "User", "UserRole",
-    "Feedback", "SentimentLabel", "FeedbackStatus",
-    "Topic", "TopicTrend",
+    "User", "Feedback", "Topic", "TopicTimeSeries", "AnalyticsSnapshot",
+    "UserRole", "SentimentLabel", "ApprovalStatus", "TrendDirection",
 ]

@@ -1,5 +1,5 @@
 """
-Integration tests for the API endpoints.
+API Test Suite — FeedbackAI Platform
 Run: pytest tests/ -v
 """
 import pytest
@@ -7,14 +7,14 @@ from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from app.main import app
-from app.database import Base, get_db
+from app.database import get_db, Base
 
 # ─── Test DB Setup ────────────────────────────────────────────────────────────
-SQLALCHEMY_TEST_URL = "sqlite:///./test.db"
-test_engine = create_engine(SQLALCHEMY_TEST_URL, connect_args={"check_same_thread": False})
-TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=test_engine)
 
-Base.metadata.create_all(bind=test_engine)
+SQLALCHEMY_DATABASE_URL = "sqlite:///./test.db"
+
+engine = create_engine(SQLALCHEMY_DATABASE_URL, connect_args={"check_same_thread": False})
+TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 
 def override_get_db():
@@ -25,138 +25,126 @@ def override_get_db():
         db.close()
 
 
-app.dependency_overrides[get_db] = override_get_db
-client = TestClient(app)
-
-# ─── Auth Tests ───────────────────────────────────────────────────────────────
-def test_register_user():
-    response = client.post("/api/v1/auth/register", json={
-        "email": "test@example.com",
-        "username": "testuser",
-        "password": "TestPass123",
-        "full_name": "Test User"
-    })
-    assert response.status_code == 201
-    data = response.json()
-    assert data["email"] == "test@example.com"
-    assert data["role"] == "user"
+@pytest.fixture(scope="module")
+def client():
+    Base.metadata.create_all(bind=engine)
+    app.dependency_overrides[get_db] = override_get_db
+    with TestClient(app) as c:
+        yield c
+    Base.metadata.drop_all(bind=engine)
+    app.dependency_overrides.clear()
 
 
-def test_register_duplicate_email():
+@pytest.fixture(scope="module")
+def auth_headers(client):
+    # Register and login
     client.post("/api/v1/auth/register", json={
-        "email": "dup@example.com", "username": "dup1", "password": "TestPass123"
-    })
-    response = client.post("/api/v1/auth/register", json={
-        "email": "dup@example.com", "username": "dup2", "password": "TestPass123"
-    })
-    assert response.status_code == 400
-
-
-def test_login_success():
-    client.post("/api/v1/auth/register", json={
-        "email": "login@example.com", "username": "loginuser", "password": "TestPass123"
-    })
-    response = client.post("/api/v1/auth/login", json={
-        "email": "login@example.com", "password": "TestPass123"
-    })
-    assert response.status_code == 200
-    data = response.json()
-    assert "access_token" in data
-    assert "refresh_token" in data
-
-
-def test_login_wrong_password():
-    response = client.post("/api/v1/auth/login", json={
-        "email": "login@example.com", "password": "WrongPass999"
-    })
-    assert response.status_code == 401
-
-
-def get_auth_token():
-    client.post("/api/v1/auth/register", json={
-        "email": "feedback@example.com", "username": "fbuser", "password": "TestPass123"
+        "email": "test@example.com", "full_name": "Test User", "password": "testpass123"
     })
     resp = client.post("/api/v1/auth/login", json={
-        "email": "feedback@example.com", "password": "TestPass123"
+        "email": "test@example.com", "password": "testpass123"
     })
-    return resp.json()["access_token"]
+    token = resp.json()["access_token"]
+    return {"Authorization": f"Bearer {token}"}
 
 
-# ─── Feedback Tests ───────────────────────────────────────────────────────────
-def test_submit_feedback():
-    token = get_auth_token()
-    response = client.post(
-        "/api/v1/feedback/submit",
-        json={"text": "This product is absolutely amazing! I love it so much."},
-        headers={"Authorization": f"Bearer {token}"},
-    )
-    assert response.status_code == 201
-    data = response.json()
-    assert "sentiment" in data
+# ─── Tests ────────────────────────────────────────────────────────────────────
+
+def test_health(client):
+    r = client.get("/health")
+    assert r.status_code == 200
+    assert r.json()["status"] == "healthy"
+
+
+def test_register(client):
+    r = client.post("/api/v1/auth/register", json={
+        "email": "new@example.com", "full_name": "New User", "password": "password123"
+    })
+    assert r.status_code == 201
+    data = r.json()
+    assert data["email"] == "new@example.com"
+
+
+def test_register_duplicate_email(client, auth_headers):
+    r = client.post("/api/v1/auth/register", json={
+        "email": "test@example.com", "full_name": "Dup", "password": "pass123"
+    })
+    assert r.status_code == 400
+
+
+def test_login(client):
+    r = client.post("/api/v1/auth/login", json={
+        "email": "test@example.com", "password": "testpass123"
+    })
+    assert r.status_code == 200
+    assert "access_token" in r.json()
+    assert "refresh_token" in r.json()
+
+
+def test_login_wrong_password(client):
+    r = client.post("/api/v1/auth/login", json={
+        "email": "test@example.com", "password": "wrongpassword"
+    })
+    assert r.status_code == 401
+
+
+def test_me(client, auth_headers):
+    r = client.get("/api/v1/auth/me", headers=auth_headers)
+    assert r.status_code == 200
+    assert r.json()["email"] == "test@example.com"
+
+
+def test_submit_feedback_negative(client, auth_headers):
+    r = client.post("/api/v1/feedback/submit", headers=auth_headers, json={
+        "text": "My order is delayed and stuck in transit for 5 days. Very frustrated.",
+        "language": "EN", "product_category": "Electronics"
+    })
+    assert r.status_code == 201
+    data = r.json()
+    assert data["sentiment"] in ["positive", "neutral", "negative"]
     assert "generated_response" in data
-    assert "topics" in data
-    assert data["sentiment"]["confidence"] > 0
+    assert data["evaluation"]["bleu_score"] >= 0
 
 
-def test_submit_empty_feedback():
-    token = get_auth_token()
-    response = client.post(
-        "/api/v1/feedback/submit",
-        json={"text": "  "},
-        headers={"Authorization": f"Bearer {token}"},
-    )
-    assert response.status_code == 422
+def test_submit_feedback_positive(client, auth_headers):
+    r = client.post("/api/v1/feedback/submit", headers=auth_headers, json={
+        "text": "Excellent quality product! Very satisfied with the fast delivery.",
+        "language": "EN",
+    })
+    assert r.status_code == 201
+    data = r.json()
+    assert data["sentiment"] == "positive"
 
 
-def test_get_my_feedbacks():
-    token = get_auth_token()
-    client.post(
-        "/api/v1/feedback/submit",
-        json={"text": "Great service!"},
-        headers={"Authorization": f"Bearer {token}"},
-    )
-    response = client.get(
-        "/api/v1/feedback/my",
-        headers={"Authorization": f"Bearer {token}"},
-    )
-    assert response.status_code == 200
-    data = response.json()
-    assert "items" in data
+def test_submit_feedback_empty(client, auth_headers):
+    r = client.post("/api/v1/feedback/submit", headers=auth_headers, json={"text": "  "})
+    assert r.status_code == 422
+
+
+def test_my_feedback(client, auth_headers):
+    r = client.get("/api/v1/feedback/my", headers=auth_headers)
+    assert r.status_code == 200
+    data = r.json()
     assert "total" in data
+    assert "items" in data
 
 
-def test_unauthenticated_access():
-    response = client.post("/api/v1/feedback/submit", json={"text": "Test"})
-    assert response.status_code == 401
+def test_dashboard_unauthenticated(client):
+    r = client.get("/api/v1/analytics/dashboard")
+    assert r.status_code == 401
 
 
-# ─── Health Test ─────────────────────────────────────────────────────────────
-def test_health_check():
-    response = client.get("/health")
-    assert response.status_code == 200
-    data = response.json()
-    assert data["status"] == "healthy"
+def test_dashboard_authenticated(client, auth_headers):
+    r = client.get("/api/v1/analytics/dashboard", headers=auth_headers)
+    assert r.status_code == 200
+    data = r.json()
+    assert "kpi" in data
+    assert "sentiment_dist" in data
 
 
-# ─── Analytics Tests ──────────────────────────────────────────────────────────
-def test_get_analytics():
-    token = get_auth_token()
-    response = client.get(
-        "/api/v1/analytics/dashboard",
-        headers={"Authorization": f"Bearer {token}"},
-    )
-    assert response.status_code == 200
-    data = response.json()
-    assert "overall" in data
-    assert "sentiment_distribution" in data
-
-
-def test_get_trending_topics():
-    token = get_auth_token()
-    response = client.get(
-        "/api/v1/topics/trending",
-        headers={"Authorization": f"Bearer {token}"},
-    )
-    assert response.status_code == 200
-    data = response.json()
-    assert "topics" in data
+def test_evaluation_metrics(client, auth_headers):
+    r = client.get("/api/v1/analytics/evaluation", headers=auth_headers)
+    assert r.status_code == 200
+    data = r.json()
+    assert data["proposed"]["accuracy"] > data["baseline"]["accuracy"]
+    assert data["proposed"]["bleu"] > data["baseline"]["bleu"]

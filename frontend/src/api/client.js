@@ -1,7 +1,6 @@
 import axios from 'axios'
-import toast from 'react-hot-toast'
 
-const BASE_URL = import.meta.env.VITE_API_URL || '/api/v1'
+const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1'
 
 const api = axios.create({
   baseURL: BASE_URL,
@@ -9,117 +8,102 @@ const api = axios.create({
   headers: { 'Content-Type': 'application/json' },
 })
 
-// ─── Request interceptor: attach JWT ──────────────────────────────────────────
-api.interceptors.request.use(
-  (config) => {
-    const token = localStorage.getItem('access_token')
-    if (token) config.headers.Authorization = `Bearer ${token}`
-    return config
-  },
-  (error) => Promise.reject(error)
-)
+// ─── Request interceptor — attach JWT ────────────────────────────────────────
+api.interceptors.request.use(config => {
+  const token = localStorage.getItem('access_token')
+  if (token) config.headers.Authorization = `Bearer ${token}`
+  return config
+})
 
-// ─── Response interceptor: handle 401 token refresh ──────────────────────────
-let isRefreshing = false
-let failedQueue = []
-
-const processQueue = (error, token = null) => {
-  failedQueue.forEach((prom) => {
-    if (error) prom.reject(error)
-    else prom.resolve(token)
-  })
-  failedQueue = []
-}
+// ─── Response interceptor — auto-refresh on 401 ──────────────────────────────
+let refreshing = false
+let queue = []
 
 api.interceptors.response.use(
-  (response) => response,
-  async (error) => {
-    const originalRequest = error.config
+  res => res,
+  async err => {
+    const original = err.config
 
-    if (error.response?.status === 401 && !originalRequest._retry) {
-      if (isRefreshing) {
+    if (err.response?.status === 401 && !original._retry) {
+      if (refreshing) {
         return new Promise((resolve, reject) => {
-          failedQueue.push({ resolve, reject })
+          queue.push({ resolve, reject })
+        }).then(token => {
+          original.headers.Authorization = `Bearer ${token}`
+          return api(original)
         })
-          .then((token) => {
-            originalRequest.headers.Authorization = `Bearer ${token}`
-            return api(originalRequest)
-          })
-          .catch((err) => Promise.reject(err))
       }
 
-      originalRequest._retry = true
-      isRefreshing = true
-      const refreshToken = localStorage.getItem('refresh_token')
-
-      if (!refreshToken) {
-        isRefreshing = false
-        window.location.href = '/login'
-        return Promise.reject(error)
-      }
+      original._retry = true
+      refreshing = true
 
       try {
-        const res = await axios.post(`${BASE_URL}/auth/refresh`, {
-          refresh_token: refreshToken,
-        })
-        const newToken = res.data.access_token
-        localStorage.setItem('access_token', newToken)
-        api.defaults.headers.common.Authorization = `Bearer ${newToken}`
-        processQueue(null, newToken)
-        return api(originalRequest)
-      } catch (err) {
-        processQueue(err, null)
+        const refresh_token = localStorage.getItem('refresh_token')
+        if (!refresh_token) throw new Error('No refresh token')
+
+        const { data } = await axios.post(`${BASE_URL}/auth/refresh`, { refresh_token })
+        localStorage.setItem('access_token', data.access_token)
+        localStorage.setItem('refresh_token', data.refresh_token)
+
+        queue.forEach(p => p.resolve(data.access_token))
+        queue = []
+
+        original.headers.Authorization = `Bearer ${data.access_token}`
+        return api(original)
+      } catch {
+        queue.forEach(p => p.reject())
+        queue = []
         localStorage.clear()
         window.location.href = '/login'
-        return Promise.reject(err)
       } finally {
-        isRefreshing = false
+        refreshing = false
       }
     }
 
-    const message = error.response?.data?.detail || 'Something went wrong'
-    if (error.response?.status !== 401) {
-      toast.error(typeof message === 'string' ? message : JSON.stringify(message))
-    }
-
-    return Promise.reject(error)
+    return Promise.reject(err)
   }
 )
 
-// ─── API Methods ──────────────────────────────────────────────────────────────
+// ─── Auth ─────────────────────────────────────────────────────────────────────
 export const authAPI = {
   register: (data) => api.post('/auth/register', data),
-  login: (data) => api.post('/auth/login', data),
-  refresh: (token) => api.post('/auth/refresh', { refresh_token: token }),
-  logout: () => api.post('/auth/logout'),
-  me: () => api.get('/auth/me'),
+  login:    (data) => api.post('/auth/login', data),
+  me:       ()     => api.get('/auth/me'),
+  logout:   ()     => { localStorage.removeItem('access_token'); localStorage.removeItem('refresh_token') },
 }
 
+// ─── Feedback ─────────────────────────────────────────────────────────────────
 export const feedbackAPI = {
-  submit: (data) => api.post('/feedback/submit', data),
-  getMy: (params) => api.get('/feedback/my', { params }),
-  getById: (id) => api.get(`/feedback/${id}`),
-  delete: (id) => api.delete(`/feedback/${id}`),
-  listAll: (params) => api.get('/feedback/', { params }),  // admin
+  submit:     (data)         => api.post('/feedback/submit', data),
+  myFeedback: (page=1,size=20) => api.get('/feedback/my', { params: {page,size} }),
+  allFeedback:(params={})    => api.get('/feedback/', { params }),
+  approve:    (id, data={})  => api.post(`/feedback/${id}/approve`, data),
+  regenerate: (id)           => api.post(`/feedback/${id}/regenerate`),
 }
 
+// ─── Topics ───────────────────────────────────────────────────────────────────
 export const topicsAPI = {
-  getTrending: (days = 30) => api.get('/topics/trending', { params: { days } }),
-  getFeedbackTopics: (id) => api.get(`/topics/for-feedback/${id}`),
+  list:   ()   => api.get('/topics/'),
+  getOne: (id) => api.get(`/topics/${id}`),
 }
 
+// ─── Analytics ────────────────────────────────────────────────────────────────
 export const analyticsAPI = {
-  getDashboard: (days = 30) => api.get('/analytics/dashboard', { params: { days } }),
-  getSentimentSummary: () => api.get('/analytics/sentiment-summary'),
-  getUserAnalytics: () => api.get('/analytics/users'),  // admin
+  dashboard:         ()  => api.get('/analytics/dashboard'),
+  evaluation:        ()  => api.get('/analytics/evaluation'),
+  languageDist:      ()  => api.get("/analytics/language-distribution"),
+  topicEvolution:    ()  => api.get("/analytics/topic-evolution"),
+  weeklyComplaints:  ()  => api.get("/analytics/weekly-complaints"),
+  categoryStats:     ()  => api.get("/analytics/category-stats"),
+  responseTime:      ()  => api.get("/analytics/response-time"),
+  trainingCurves:    ()  => api.get("/analytics/training-curves"),
+  bleuProgression:   ()  => api.get("/analytics/bleu-progression"),
 }
 
+// ─── Users ────────────────────────────────────────────────────────────────────
 export const usersAPI = {
-  getProfile: () => api.get('/users/me'),
-  updateProfile: (data) => api.put('/users/me', data),
-  changePassword: (data) => api.post('/users/me/change-password', data),
-  listUsers: (params) => api.get('/users/', { params }),  // admin
-  updateRole: (id, role) => api.put(`/users/${id}/role`, null, { params: { role } }),
+  list:       (page=1) => api.get('/users/', { params: {page} }),
+  updateRole: (id, role) => api.put(`/users/${id}/role`, {role}),
 }
 
 export default api

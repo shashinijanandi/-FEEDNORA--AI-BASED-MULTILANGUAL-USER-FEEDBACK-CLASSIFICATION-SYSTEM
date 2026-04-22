@@ -1,171 +1,218 @@
-import { useState, useEffect } from 'react'
-import { Link } from 'react-router-dom'
-import { analyticsAPI } from '../api/client'
-import { useAuth } from '../context/AuthContext'
 import {
-  PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar,
-  XAxis, YAxis, CartesianGrid, Tooltip, Legend
+  AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell,
+  XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer
 } from 'recharts'
-import { MessageSquarePlus, Users, TrendingUp, Target, ArrowRight, Loader2 } from 'lucide-react'
+import { MessageSquare, ThumbsUp, AlertTriangle, Sparkles, Activity, Cpu, RefreshCw } from 'lucide-react'
+import { MetricCard, SentimentBadge, ProgressBar, ChartCard, CustomTooltip } from '../components/UI'
+import { analyticsAPI } from '../api/client'
+import { useApi, LoadingSpinner, ApiError } from '../hooks/useApi'
 
-const SENTIMENT_COLORS = {
-  happiness: '#22c55e', sadness: '#3b82f6', anger: '#ef4444',
-  disgust: '#6b7280', fear: '#f59e0b', surprise: '#06b6d4', neutral: '#94a3b8',
-}
-const SENTIMENT_EMOJI = {
-  happiness: '😊', sadness: '😢', anger: '😠', disgust: '🤢',
-  fear: '😨', surprise: '😲', neutral: '😐',
-}
-
-function StatCard({ icon: Icon, label, value, sub, color = 'indigo' }) {
-  const colors = {
-    indigo: 'bg-indigo-50 text-indigo-600',
-    green: 'bg-green-50 text-green-600',
-    blue: 'bg-blue-50 text-blue-600',
-    purple: 'bg-purple-50 text-purple-600',
-  }
-  return (
-    <div className="card flex items-start gap-4">
-      <div className={`p-3 rounded-xl ${colors[color]}`}>
-        <Icon size={22} />
-      </div>
-      <div>
-        <p className="text-sm text-gray-500">{label}</p>
-        <p className="text-2xl font-bold text-gray-900 mt-0.5">{value}</p>
-        {sub && <p className="text-xs text-gray-400 mt-1">{sub}</p>}
-      </div>
-    </div>
-  )
-}
+const TOPIC_COLORS = ['#22d3ee','#34d399','#fbbf24','#a78bfa','#f87171','#fb923c']
 
 export default function Dashboard() {
-  const { user } = useAuth()
-  const [data, setData] = useState(null)
-  const [loading, setLoading] = useState(true)
+  const { data,           loading,  error,  refetch  } = useApi(() => analyticsAPI.dashboard())
+  const { data: evolution, loading: evoLoading }        = useApi(() => analyticsAPI.topicEvolution())
+  const { data: weekly,    loading: weekLoading }        = useApi(() => analyticsAPI.weeklyComplaints())
 
-  useEffect(() => {
-    analyticsAPI.getDashboard(30)
-      .then(r => setData(r.data))
-      .catch(() => {})
-      .finally(() => setLoading(false))
-  }, [])
+  if (loading) return <LoadingSpinner message="Loading dashboard…" />
+  if (error)   return <div className="p-6"><ApiError error={error} onRetry={refetch} /></div>
 
-  if (loading) return (
-    <div className="flex items-center justify-center h-full">
-      <Loader2 size={32} className="animate-spin text-indigo-600" />
-    </div>
-  )
-
-  const overall = data?.overall || {}
-  const sentimentDist = data?.sentiment_distribution || []
-  const dailyTrends = data?.daily_trends || []
-  const recentFeedbacks = data?.recent_feedbacks || []
+  const { kpi, sentiment_dist, topic_dist, recent_feedback } = data
 
   return (
-    <div className="p-8 max-w-7xl mx-auto">
-      {/* Header */}
-      <div className="mb-8 flex items-center justify-between">
+    <div className="p-6 space-y-6 animate-fade-in">
+      <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">
-            Good {new Date().getHours() < 12 ? 'morning' : 'afternoon'}, {user?.username}! 👋
-          </h1>
-          <p className="text-gray-500 mt-1">Here's your feedback analytics overview</p>
+          <h1 className="font-display text-2xl font-bold text-white tracking-tight">Intelligence Overview</h1>
+          <p className="text-sm text-slate-500 mt-1">
+            All data live from PostgreSQL · Processed by your trained AI models
+          </p>
         </div>
-        <Link to="/feedback/submit" className="btn-primary flex items-center gap-2">
-          <MessageSquarePlus size={18} />
-          Submit Feedback
-        </Link>
+        <button onClick={refetch} className="btn-ghost text-xs"><RefreshCw size={13}/> Refresh</button>
       </div>
 
-      {/* Stat cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5 mb-8">
-        <StatCard icon={MessageSquarePlus} label="Total Feedbacks" value={overall.total_feedbacks ?? 0} sub="All time" color="indigo" />
-        <StatCard icon={Users} label="Total Users" value={overall.total_users ?? 0} sub="Registered users" color="blue" />
-        <StatCard icon={TrendingUp} label="Processed Today" value={overall.processed_today ?? 0} sub="Since midnight" color="green" />
-        <StatCard icon={Target} label="Avg Confidence" value={`${((overall.avg_confidence ?? 0) * 100).toFixed(1)}%`} sub="Model accuracy" color="purple" />
+      {/* KPI — 100% live from /analytics/dashboard */}
+      <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
+        <MetricCard title="Total Feedback"     value={kpi.total_feedback.toLocaleString()}    delta={null} icon={MessageSquare} color="brand"  />
+        <MetricCard title="Satisfaction Rate"  value={kpi.satisfaction_rate.toFixed(1)} unit="%" icon={ThumbsUp}    color="green"  />
+        <MetricCard title="Negative Feedback"  value={kpi.negative_percent.toFixed(1)}  unit="%" icon={AlertTriangle} color="red"  />
+        <MetricCard title="AI Responses Today" value={kpi.ai_responses_today.toLocaleString()} icon={Sparkles}    color="cyan"   />
+        <MetricCard title="Avg BLEU Score"     value={kpi.avg_bleu > 0 ? kpi.avg_bleu.toFixed(3) : '—'} icon={Activity} color="violet"/>
+        <MetricCard title="Model Confidence"   value={kpi.avg_confidence > 0 ? kpi.avg_confidence.toFixed(1) : '—'} unit="%" icon={Cpu} color="amber"/>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
-        {/* Sentiment Distribution Pie */}
-        <div className="card">
-          <h2 className="font-semibold text-gray-900 mb-4">Sentiment Distribution</h2>
-          {sentimentDist.length > 0 ? (
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        {/* Topic Evolution — from topic_time_series table */}
+        <div className="lg:col-span-2">
+          <ChartCard title="Dynamic Topic Evolution"
+            subtitle="topic_time_series table · probability per period from topics seeded in DB">
+            {evoLoading ? (
+              <div className="flex items-center justify-center h-48 text-slate-600 text-sm">Loading…</div>
+            ) : !evolution?.length ? (
+              <div className="flex items-center justify-center h-48 text-slate-600 text-sm">
+                No topic time-series data yet. Topics are seeded on startup.
+              </div>
+            ) : (
+              <ResponsiveContainer width="100%" height={220}>
+                <AreaChart data={evolution} margin={{ top:5, right:5, left:-20, bottom:0 }}>
+                  <defs>{TOPIC_COLORS.map((c,i) => (
+                    <linearGradient key={i} id={`g${i}`} x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%"  stopColor={c} stopOpacity={0.3}/>
+                      <stop offset="95%" stopColor={c} stopOpacity={0.02}/>
+                    </linearGradient>
+                  ))}</defs>
+                  <CartesianGrid strokeDasharray="3 3"/>
+                  <XAxis dataKey="month"/>
+                  <YAxis tickFormatter={v => `${v}%`}/>
+                  <Tooltip content={<CustomTooltip/>}/>
+                  <Legend wrapperStyle={{ fontSize:'11px', color:'#64748b' }}/>
+                  {['Delivery','Product','Payment','Customer','Returns'].map((k,i) => (
+                    <Area key={k} type="monotone" dataKey={k}
+                      stroke={TOPIC_COLORS[i]} fill={`url(#g${i})`} strokeWidth={2}/>
+                  ))}
+                </AreaChart>
+              </ResponsiveContainer>
+            )}
+          </ChartCard>
+        </div>
+
+        {/* Sentiment — live from feedbacks table */}
+        <ChartCard title="Sentiment Distribution"
+          subtitle="Live · classified by sentiment_model.pkl">
+          {!sentiment_dist?.length ? (
+            <div className="flex items-center justify-center h-40 text-slate-600 text-sm">
+              Submit feedback to see live sentiment data
+            </div>
+          ) : (
             <>
-              <ResponsiveContainer width="100%" height={200}>
+              <ResponsiveContainer width="100%" height={160}>
                 <PieChart>
-                  <Pie data={sentimentDist} dataKey="count" nameKey="label" cx="50%" cy="50%" outerRadius={80}>
-                    {sentimentDist.map((entry) => (
-                      <Cell key={entry.label} fill={SENTIMENT_COLORS[entry.label] || '#94a3b8'} />
-                    ))}
+                  <Pie data={sentiment_dist} cx="50%" cy="50%" innerRadius={45} outerRadius={70} paddingAngle={3} dataKey="value">
+                    {sentiment_dist.map((e,i) => <Cell key={i} fill={e.color} stroke="none"/>)}
                   </Pie>
-                  <Tooltip formatter={(v, n) => [v, n]} />
+                  <Tooltip content={<CustomTooltip/>}/>
                 </PieChart>
               </ResponsiveContainer>
               <div className="space-y-2 mt-2">
-                {sentimentDist.slice(0, 4).map((s) => (
-                  <div key={s.label} className="flex items-center justify-between text-sm">
-                    <span className="flex items-center gap-2">
-                      <span>{SENTIMENT_EMOJI[s.label]}</span>
-                      <span className="capitalize text-gray-600">{s.label}</span>
-                    </span>
-                    <span className="font-medium text-gray-900">{s.percentage}%</span>
+                {sentiment_dist.map(s => (
+                  <div key={s.name} className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <div className="w-2 h-2 rounded-full" style={{ background: s.color }}/>
+                      <span className="text-xs text-slate-400">{s.name}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <ProgressBar value={s.value} color={s.color}/>
+                      <span className="text-xs font-medium text-white w-10 text-right">{s.value}%</span>
+                    </div>
                   </div>
                 ))}
               </div>
             </>
-          ) : (
-            <div className="h-48 flex items-center justify-center text-gray-400 text-sm">
-              No data yet. Submit some feedback!
-            </div>
           )}
-        </div>
-
-        {/* Daily Trend Bar */}
-        <div className="card lg:col-span-2">
-          <h2 className="font-semibold text-gray-900 mb-4">Daily Feedback Volume (Last 8 Days)</h2>
-          <ResponsiveContainer width="100%" height={220}>
-            <BarChart data={dailyTrends}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-              <XAxis dataKey="date" tick={{ fontSize: 11 }} tickFormatter={d => d.slice(5)} />
-              <YAxis tick={{ fontSize: 11 }} />
-              <Tooltip />
-              <Bar dataKey="happiness" stackId="a" fill="#22c55e" name="Happy" />
-              <Bar dataKey="sadness" stackId="a" fill="#3b82f6" name="Sad" />
-              <Bar dataKey="anger" stackId="a" fill="#ef4444" name="Angry" />
-              <Bar dataKey="neutral" stackId="a" fill="#94a3b8" name="Neutral" radius={[4, 4, 0, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
+        </ChartCard>
       </div>
 
-      {/* Recent Feedbacks */}
-      <div className="card">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="font-semibold text-gray-900">Recent Feedbacks</h2>
-          <Link to="/feedback/history" className="text-sm text-indigo-600 hover:underline flex items-center gap-1">
-            View all <ArrowRight size={14} />
-          </Link>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        {/* Topic Distribution — live */}
+        <ChartCard title="Topic Distribution"
+          subtitle="Live · detected_topic from feedbacks table (your LDA model output)">
+          {!topic_dist?.length ? (
+            <div className="flex items-center justify-center h-40 text-slate-600 text-sm">
+              Submit feedback to see topic distribution
+            </div>
+          ) : (
+            <ResponsiveContainer width="100%" height={200}>
+              <BarChart data={topic_dist} layout="vertical" margin={{ top:0, right:10, left:10, bottom:0 }}>
+                <CartesianGrid strokeDasharray="3 3" horizontal={false}/>
+                <XAxis type="number"/><YAxis dataKey="topic" type="category" width={130} tick={{ fontSize:11 }}/>
+                <Tooltip content={<CustomTooltip/>}/>
+                <Bar dataKey="count" radius={[0,6,6,0]}>
+                  {topic_dist.map((_,i) => <Cell key={i} fill={TOPIC_COLORS[i % TOPIC_COLORS.length]}/>)}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          )}
+        </ChartCard>
+
+        {/* Weekly Complaints — live from DB */}
+        <ChartCard title="Weekly Complaint Trend"
+          subtitle="Live · last 7 days from feedbacks table · grouped by detected_topic">
+          {weekLoading ? (
+            <div className="flex items-center justify-center h-40 text-slate-600 text-sm">Loading…</div>
+          ) : !weekly?.some(d => Object.keys(d).length > 1) ? (
+            <div className="flex items-center justify-center h-40 text-slate-600 text-sm">
+              No feedback in the last 7 days yet
+            </div>
+          ) : (
+            <ResponsiveContainer width="100%" height={200}>
+              <BarChart data={weekly} margin={{ top:0, right:5, left:-20, bottom:0 }}>
+                <CartesianGrid strokeDasharray="3 3"/>
+                <XAxis dataKey="day"/>
+                <YAxis allowDecimals={false}/>
+                <Tooltip content={<CustomTooltip/>}/>
+                <Legend wrapperStyle={{ fontSize:'11px' }}/>
+                {['Delivery','Payment','Product','Customer','Returns','App'].map((k,i) => (
+                  <Bar key={k} dataKey={k} stackId="a" fill={TOPIC_COLORS[i]}
+                    radius={i===5?[4,4,0,0]:[0,0,0,0]}/>
+                ))}
+              </BarChart>
+            </ResponsiveContainer>
+          )}
+        </ChartCard>
+      </div>
+
+      {/* Recent Feedback — live from feedbacks table */}
+      <div className="card overflow-hidden">
+        <div className="flex items-center justify-between p-5 border-b border-white/5">
+          <div>
+            <h2 className="section-title">Recent Feedback</h2>
+            <p className="text-xs text-slate-500 mt-0.5">
+              Live · feedbacks table · sentiment + topic from your AI models
+            </p>
+          </div>
+          <button onClick={refetch} className="btn-ghost text-xs"><RefreshCw size={12}/> Refresh</button>
         </div>
-        {recentFeedbacks.length === 0 ? (
-          <div className="text-center py-10 text-gray-400">
-            <MessageSquarePlus size={40} className="mx-auto mb-3 opacity-40" />
-            <p>No feedback yet. <Link to="/feedback/submit" className="text-indigo-600 hover:underline">Submit your first one!</Link></p>
+        {!recent_feedback?.length ? (
+          <div className="flex items-center justify-center py-16 text-slate-600 text-sm">
+            No feedback yet — submit some via the Submit Feedback page to test your model
           </div>
         ) : (
-          <div className="space-y-3">
-            {recentFeedbacks.map((fb) => (
-              <div key={fb.id} className="flex items-start gap-3 p-3 rounded-xl bg-gray-50 hover:bg-gray-100 transition-colors">
-                <span className="text-xl mt-0.5">{SENTIMENT_EMOJI[fb.sentiment] || '📝'}</span>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm text-gray-700 truncate">{fb.text_preview}</p>
-                  <p className="text-xs text-gray-400 mt-1">
-                    <span className="capitalize font-medium text-gray-600">{fb.sentiment}</span>
-                    {fb.confidence && ` · ${(fb.confidence * 100).toFixed(0)}% confidence`}
-                    {' · '}{new Date(fb.created_at).toLocaleDateString()}
-                  </p>
-                </div>
-              </div>
-            ))}
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead>
+                <tr className="border-b border-white/5">
+                  {['#','Feedback','Sentiment','Topic','AI Response','Confidence','BLEU'].map(h => (
+                    <th key={h} className="text-left px-5 py-3 text-[11px] font-medium text-slate-500 uppercase tracking-wider whitespace-nowrap">{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {recent_feedback.map(fb => (
+                  <tr key={fb.id} className="border-b border-white/5 hover:bg-surface-700/30 transition-colors">
+                    <td className="px-5 py-3.5"><span className="text-xs font-mono text-brand-400">#{fb.id}</span></td>
+                    <td className="px-5 py-3.5 max-w-xs"><p className="text-sm text-slate-300 truncate">{fb.text}</p></td>
+                    <td className="px-5 py-3.5"><SentimentBadge sentiment={fb.sentiment}/></td>
+                    <td className="px-5 py-3.5">
+                      <span className="text-xs text-slate-400 bg-surface-700 px-2 py-1 rounded-lg border border-white/5">{fb.detected_topic || '—'}</span>
+                    </td>
+                    <td className="px-5 py-3.5 max-w-xs"><p className="text-xs text-slate-500 truncate">{fb.generated_response || '—'}</p></td>
+                    <td className="px-5 py-3.5 w-32">
+                      {fb.model_confidence ? (
+                        <div className="flex items-center gap-2">
+                          <div className="flex-1 progress-bar"><div className="progress-fill bg-brand-500" style={{width:`${fb.model_confidence}%`}}/></div>
+                          <span className="text-[11px] text-slate-400 w-10 text-right">{fb.model_confidence.toFixed(1)}%</span>
+                        </div>
+                      ) : <span className="text-slate-600">—</span>}
+                    </td>
+                    <td className="px-5 py-3.5">
+                      {fb.bleu_score
+                        ? <span className="text-xs font-mono text-accent-cyan">{fb.bleu_score.toFixed(3)}</span>
+                        : <span className="text-slate-600">—</span>}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         )}
       </div>

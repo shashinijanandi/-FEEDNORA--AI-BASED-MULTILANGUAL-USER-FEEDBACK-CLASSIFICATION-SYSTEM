@@ -1,164 +1,160 @@
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
-from datetime import datetime
 from typing import Optional
-
 from app.database import get_db
-from app.models.feedback import Feedback, SentimentLabel, FeedbackStatus
-from app.models.user import User, UserRole
-from app.schemas.feedback import FeedbackSubmit, FeedbackResponse, FeedbackListResponse, FeedbackAnalysis
-from app.services.ai_service import get_sentiment_service
-from app.services.topic_service import get_topic_service
-from app.dependencies import get_current_active_user, require_admin
-import logging
+from app.models.models import Feedback, User, ApprovalStatus, SentimentLabel
+from app.schemas.schemas import (
+    FeedbackSubmit, FeedbackAnalysisResult, FeedbackOut,
+    FeedbackApprove, FeedbackListResponse, TopicResult, EvaluationMetrics
+)
+from app.services.ai_service import get_ai_service
+from app.dependencies import get_current_user, require_admin, get_optional_user
 
-logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/feedback", tags=["Feedback"])
 
 
-def _detect_language(text: str) -> str:
-    """Simple language detection heuristic (replace with langdetect in production)."""
-    sinhala_chars = any('\u0D80' <= c <= '\u0DFF' for c in text)
-    tamil_chars = any('\u0B80' <= c <= '\u0BFF' for c in text)
-    if sinhala_chars:
-        return "si"
-    if tamil_chars:
-        return "ta"
-    return "en"
-
-
-@router.post("/submit", response_model=FeedbackAnalysis, status_code=status.HTTP_201_CREATED)
-async def submit_feedback(
+@router.post("/submit", response_model=FeedbackAnalysisResult, status_code=201)
+def submit_feedback(
     payload: FeedbackSubmit,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_user),
+    db:      Session = Depends(get_db),
+    current_user: Optional[User] = Depends(get_optional_user),
 ):
-    """
-    Submit feedback text. Automatically:
-    - Detects language
-    - Analyzes sentiment (Component 1)
-    - Generates personalized response (Component 1)
-    - Extracts topics (Component 2)
-    """
-    ai_service = get_sentiment_service()
-    topic_service = get_topic_service()
+    ai = get_ai_service()
+    result = ai.run_pipeline(payload.text)
 
-    detected_lang = _detect_language(payload.text)
-    analysis = ai_service.analyze(payload.text)
-    topics = topic_service.analyze_single(payload.text)
-    dominant_topic = topics[0]["label"] if topics else None
-
-    sentiment_enum = None
-    try:
-        sentiment_enum = SentimentLabel(analysis["sentiment"])
-    except ValueError:
-        sentiment_enum = SentimentLabel.neutral
-
-    feedback_record = Feedback(
-        user_id=current_user.id,
-        original_text=payload.text,
-        detected_language=detected_lang,
-        sentiment=sentiment_enum,
-        confidence_score=analysis["confidence"],
-        sentiment_probabilities=analysis["probabilities"],
-        generated_response=analysis["generated_response"],
-        extracted_topics=topics,
-        dominant_topic=dominant_topic,
-        status=FeedbackStatus.processed,
-        source=payload.source or "web",
-        category=payload.category,
-        processed_at=datetime.utcnow(),
+    feedback = Feedback(
+        user_id          = current_user.id if current_user else None,
+        text             = payload.text,
+        language         = payload.language or "EN",
+        product_category = payload.product_category,
+        sentiment        = SentimentLabel(result["sentiment"]),
+        sentiment_conf   = result["sentiment_conf"],
+        detected_topic   = result["topic"]["name"],
+        topic_probability= result["topic"]["probability"],
+        topic_keywords   = result["topic"]["keywords"],
+        generated_response = result["generated_response"],
+        approval_status  = ApprovalStatus(result["approval_status"]),
+        bleu_score       = result["evaluation"]["bleu_score"],
+        rouge_l_score    = result["evaluation"]["rouge_l_score"],
+        semantic_similarity = result["evaluation"]["semantic_similarity"],
+        model_confidence = result["evaluation"]["model_confidence"],
     )
-
-    db.add(feedback_record)
+    db.add(feedback)
     db.commit()
-    db.refresh(feedback_record)
-    logger.info(f"Feedback {feedback_record.id} processed: {analysis['sentiment']} ({analysis['confidence']:.2%})")
+    db.refresh(feedback)
 
-    return FeedbackAnalysis(
-        feedback_id=feedback_record.id,
-        sentiment={
-            "label": sentiment_enum,
-            "confidence": analysis["confidence"],
-            "probabilities": analysis["probabilities"],
-        },
-        generated_response=analysis["generated_response"],
-        topics=topics,
-        detected_language=detected_lang,
-        processing_time_ms=analysis["processing_time_ms"],
+    return FeedbackAnalysisResult(
+        id               = feedback.id,
+        text             = feedback.text,
+        sentiment        = feedback.sentiment,
+        sentiment_conf   = feedback.sentiment_conf,
+        topic            = TopicResult(
+            name        = result["topic"]["name"],
+            probability = result["topic"]["probability"],
+            keywords    = result["topic"]["keywords"],
+            all_topics  = result["topic"]["all_topics"],
+        ),
+        generated_response = feedback.generated_response,
+        approval_status  = feedback.approval_status,
+        evaluation       = EvaluationMetrics(
+            bleu_score          = feedback.bleu_score,
+            rouge_l_score       = feedback.rouge_l_score,
+            semantic_similarity = feedback.semantic_similarity,
+            model_confidence    = feedback.model_confidence,
+        ),
+        created_at = feedback.created_at,
     )
 
 
 @router.get("/my", response_model=FeedbackListResponse)
-async def get_my_feedbacks(
+def my_feedback(
     page: int = Query(1, ge=1),
-    page_size: int = Query(10, ge=1, le=100),
-    sentiment: Optional[str] = None,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_user),
+    size: int = Query(20, ge=1, le=100),
+    db:   Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
-    """Get current user's feedback history with pagination."""
-    query = db.query(Feedback).filter(Feedback.user_id == current_user.id)
+    q = db.query(Feedback).filter(Feedback.user_id == current_user.id).order_by(Feedback.created_at.desc())
+    total = q.count()
+    items = q.offset((page - 1) * size).limit(size).all()
+    return FeedbackListResponse(total=total, items=items, page=page, size=size)
+
+
+@router.get("/", response_model=FeedbackListResponse)
+def all_feedback(
+    page:      int = Query(1, ge=1),
+    size:      int = Query(20, ge=1, le=100),
+    sentiment: Optional[str] = None,
+    topic:     Optional[str] = None,
+    db:        Session = Depends(get_db),
+    _:         User = Depends(require_admin),
+):
+    q = db.query(Feedback).order_by(Feedback.created_at.desc())
     if sentiment:
-        try:
-            query = query.filter(Feedback.sentiment == SentimentLabel(sentiment))
-        except ValueError:
-            pass
-
-    total = query.count()
-    items = query.order_by(Feedback.created_at.desc()).offset((page - 1) * page_size).limit(page_size).all()
-    return FeedbackListResponse(total=total, page=page, page_size=page_size, items=items)
+        q = q.filter(Feedback.sentiment == sentiment)
+    if topic:
+        q = q.filter(Feedback.detected_topic.ilike(f"%{topic}%"))
+    total = q.count()
+    items = q.offset((page - 1) * size).limit(size).all()
+    return FeedbackListResponse(total=total, items=items, page=page, size=size)
 
 
-@router.get("/{feedback_id}", response_model=FeedbackResponse)
-async def get_feedback(
+@router.get("/{feedback_id}", response_model=FeedbackOut)
+def get_feedback(
     feedback_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_user),
+    current_user: User = Depends(get_current_user),
 ):
-    """Get a specific feedback record."""
-    feedback = db.query(Feedback).filter(Feedback.id == feedback_id).first()
-    if not feedback:
+    fb = db.query(Feedback).filter(Feedback.id == feedback_id).first()
+    if not fb:
         raise HTTPException(status_code=404, detail="Feedback not found")
-    if feedback.user_id != current_user.id and current_user.role != UserRole.admin:
+    if fb.user_id != current_user.id and current_user.role.value != "admin":
         raise HTTPException(status_code=403, detail="Access denied")
-    return feedback
+    return fb
 
 
-@router.get("/", response_model=FeedbackListResponse, dependencies=[Depends(require_admin)])
-async def list_all_feedbacks(
-    page: int = Query(1, ge=1),
-    page_size: int = Query(20, ge=1, le=100),
-    sentiment: Optional[str] = None,
-    user_id: Optional[int] = None,
+@router.post("/{feedback_id}/approve", response_model=FeedbackOut)
+def approve_feedback(
+    feedback_id: int,
+    payload: FeedbackApprove,
     db: Session = Depends(get_db),
+    _:  User = Depends(require_admin),
 ):
-    """[Admin Only] List all feedback records."""
-    query = db.query(Feedback)
-    if sentiment:
-        try:
-            query = query.filter(Feedback.sentiment == SentimentLabel(sentiment))
-        except ValueError:
-            pass
-    if user_id:
-        query = query.filter(Feedback.user_id == user_id)
-
-    total = query.count()
-    items = query.order_by(Feedback.created_at.desc()).offset((page - 1) * page_size).limit(page_size).all()
-    return FeedbackListResponse(total=total, page=page, page_size=page_size, items=items)
+    fb = db.query(Feedback).filter(Feedback.id == feedback_id).first()
+    if not fb:
+        raise HTTPException(status_code=404, detail="Feedback not found")
+    fb.approval_status = ApprovalStatus.approved
+    if payload.response:
+        fb.approved_response = payload.response
+    db.commit()
+    db.refresh(fb)
+    return fb
 
 
-@router.delete("/{feedback_id}", status_code=204)
-async def delete_feedback(
+@router.post("/{feedback_id}/regenerate", response_model=FeedbackOut)
+def regenerate_response(
     feedback_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_user),
+    current_user: User = Depends(get_current_user),
 ):
-    """Delete own feedback (or admin can delete any)."""
-    feedback = db.query(Feedback).filter(Feedback.id == feedback_id).first()
-    if not feedback:
-        raise HTTPException(status_code=404, detail="Not found")
-    if feedback.user_id != current_user.id and current_user.role != UserRole.admin:
-        raise HTTPException(status_code=403, detail="Access denied")
-    db.delete(feedback)
+    fb = db.query(Feedback).filter(Feedback.id == feedback_id).first()
+    if not fb:
+        raise HTTPException(status_code=404, detail="Feedback not found")
+
+    ai = get_ai_service()
+    new_response = ai.generate_response(
+        fb.text,
+        fb.sentiment.value if fb.sentiment else "neutral",
+        fb.detected_topic or "General",
+        fb.topic_keywords or [],
+    )
+    eval_result = ai.evaluate(fb.text, new_response)
+
+    fb.generated_response = new_response
+    fb.bleu_score         = eval_result["bleu_score"]
+    fb.rouge_l_score      = eval_result["rouge_l_score"]
+    fb.semantic_similarity= eval_result["semantic_similarity"]
+    fb.model_confidence   = eval_result["model_confidence"]
+    fb.approval_status    = ApprovalStatus.needs_review
     db.commit()
+    db.refresh(fb)
+    return fb

@@ -1,1 +1,1 @@
-# AI Feedback Analytics Platform - Backend
+# FeedbackAI Backend

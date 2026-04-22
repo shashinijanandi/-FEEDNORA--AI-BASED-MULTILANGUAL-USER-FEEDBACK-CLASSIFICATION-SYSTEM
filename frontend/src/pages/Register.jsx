@@ -1,111 +1,84 @@
 import { useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
-import { useAuth } from '../context/AuthContext'
-import { Brain, Eye, EyeOff, Loader2 } from 'lucide-react'
+import { useNavigate, Link } from 'react-router-dom'
+import { Zap, Mail, Lock, User, AlertCircle } from 'lucide-react'
+import { authAPI } from '../api/client'
 
-export default function RegisterPage() {
-  const { register } = useAuth()
+export default function Register() {
   const navigate = useNavigate()
-  const [form, setForm] = useState({ email: '', username: '', password: '', full_name: '' })
-  const [showPw, setShowPw] = useState(false)
+  const [form, setForm]     = useState({ email: '', full_name: '', password: '' })
   const [loading, setLoading] = useState(false)
-  const [errors, setErrors] = useState({})
-
-  const validate = () => {
-    const e = {}
-    if (!form.email) e.email = 'Email is required'
-    if (!form.username || form.username.length < 3) e.username = 'Min 3 characters'
-    if (!form.password || form.password.length < 8) e.password = 'Min 8 characters'
-    if (!/[A-Z]/.test(form.password)) e.password = 'Need at least one uppercase letter'
-    if (!/[0-9]/.test(form.password)) e.password = 'Need at least one number'
-    return e
-  }
+  const [error, setError]   = useState('')
 
   const handleSubmit = async (e) => {
     e.preventDefault()
-    const v = validate()
-    if (Object.keys(v).length) { setErrors(v); return }
-    setErrors({})
+    setError('')
     setLoading(true)
     try {
-      await register(form)
+      await authAPI.register(form)
       navigate('/login')
     } catch (err) {
-      const detail = err.response?.data?.detail
-      setErrors({ general: typeof detail === 'string' ? detail : 'Registration failed' })
+      setError(err.response?.data?.detail || 'Registration failed')
     } finally {
       setLoading(false)
     }
   }
 
-  const field = (key) => ({
-    value: form[key],
-    onChange: (e) => setForm({ ...form, [key]: e.target.value }),
-  })
-
   return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50 flex items-center justify-center p-4">
-      <div className="w-full max-w-md">
-        <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-indigo-600 mb-4 shadow-lg">
-            <Brain size={32} className="text-white" />
+    <div className="min-h-screen bg-surface-900 grid-bg flex items-center justify-center p-4">
+      <div className="w-full max-w-sm">
+        <div className="flex flex-col items-center mb-8">
+          <div className="w-14 h-14 rounded-2xl bg-brand-600 flex items-center justify-center shadow-glow-blue mb-4">
+            <Zap size={28} className="text-white" />
           </div>
-          <h1 className="text-2xl font-bold text-gray-900">Create account</h1>
-          <p className="text-gray-500 mt-1">Join AI Feedback Analytics Platform</p>
+          <h1 className="font-display text-2xl font-bold text-white">FeedbackAI</h1>
+          <p className="text-sm text-slate-500 mt-1">Create your account</p>
         </div>
 
-        <div className="card">
+        <div className="card p-6">
+          <h2 className="section-title mb-5">Register</h2>
+          {error && (
+            <div className="flex items-center gap-2 p-3 mb-4 bg-accent-red/10 border border-accent-red/20 rounded-xl text-sm text-accent-red">
+              <AlertCircle size={14} />{error}
+            </div>
+          )}
           <form onSubmit={handleSubmit} className="space-y-4">
-            {errors.general && (
-              <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl text-sm">
-                {errors.general}
-              </div>
-            )}
-
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1.5">Full Name</label>
-              <input type="text" className="input-field" placeholder="John Doe" {...field('full_name')} />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1.5">Email *</label>
-              <input type="email" required className="input-field" placeholder="you@example.com" {...field('email')} />
-              {errors.email && <p className="text-red-500 text-xs mt-1">{errors.email}</p>}
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1.5">Username *</label>
-              <input type="text" required className="input-field" placeholder="john_doe" {...field('username')} />
-              {errors.username && <p className="text-red-500 text-xs mt-1">{errors.username}</p>}
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1.5">Password *</label>
+              <label className="label mb-1.5 block">Full Name</label>
               <div className="relative">
-                <input
-                  type={showPw ? 'text' : 'password'}
-                  required
-                  className="input-field pr-10"
-                  placeholder="Min 8 chars, 1 uppercase, 1 number"
-                  {...field('password')}
-                />
-                <button type="button" onClick={() => setShowPw(!showPw)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
-                  {showPw ? <EyeOff size={18} /> : <Eye size={18} />}
-                </button>
+                <User size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
+                <input type="text" required value={form.full_name}
+                  onChange={e => setForm(f => ({...f, full_name: e.target.value}))}
+                  placeholder="Your full name" className="input-field pl-9" />
               </div>
-              {errors.password && <p className="text-red-500 text-xs mt-1">{errors.password}</p>}
             </div>
-
-            <button type="submit" disabled={loading} className="btn-primary w-full flex items-center justify-center gap-2 mt-2">
-              {loading && <Loader2 size={18} className="animate-spin" />}
-              {loading ? 'Creating account...' : 'Create account'}
+            <div>
+              <label className="label mb-1.5 block">Email</label>
+              <div className="relative">
+                <Mail size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
+                <input type="email" required value={form.email}
+                  onChange={e => setForm(f => ({...f, email: e.target.value}))}
+                  placeholder="you@sliit.lk" className="input-field pl-9" />
+              </div>
+            </div>
+            <div>
+              <label className="label mb-1.5 block">Password</label>
+              <div className="relative">
+                <Lock size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
+                <input type="password" required value={form.password}
+                  onChange={e => setForm(f => ({...f, password: e.target.value}))}
+                  placeholder="Min. 6 characters" className="input-field pl-9" />
+              </div>
+            </div>
+            <button type="submit" disabled={loading}
+              className="btn-primary w-full justify-center py-3 mt-2 disabled:opacity-50">
+              {loading ? (
+                <><div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />Creating account…</>
+              ) : 'Create Account'}
             </button>
           </form>
-
-          <p className="text-center text-sm text-gray-500 mt-5">
+          <p className="text-center text-xs text-slate-600 mt-4">
             Already have an account?{' '}
-            <Link to="/login" className="text-indigo-600 font-medium hover:underline">Sign in</Link>
+            <Link to="/login" className="text-brand-400 hover:text-brand-300">Sign in</Link>
           </p>
         </div>
       </div>

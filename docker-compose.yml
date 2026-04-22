@@ -1,42 +1,60 @@
-version: '3.9'
+version: "3.9"
 
 services:
-  # ─── PostgreSQL Database ───────────────────────────────────────────────────
+
+  # ─── PostgreSQL 16 ──────────────────────────────────────────────────────────
   db:
     image: postgres:16-alpine
-    container_name: feedback_db
+    container_name: feedbackai_db
     restart: unless-stopped
     environment:
-      POSTGRES_DB: feedback_analytics
-      POSTGRES_USER: postgres
+      POSTGRES_USER:     ${POSTGRES_USER:-postgres}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-password}
+      POSTGRES_DB:       ${POSTGRES_DB:-feedbackai}
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./database/init.sql:/docker-entrypoint-initdb.d/init.sql
+      - ./database/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
     ports:
       - "5432:5432"
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-feedbackai}"]
       interval: 10s
       timeout: 5s
       retries: 5
+    networks:
+      - feedbackai_net
 
-  # ─── FastAPI Backend ───────────────────────────────────────────────────────
+  # ─── pgAdmin (dev only) ─────────────────────────────────────────────────────
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: feedbackai_pgadmin
+    restart: unless-stopped
+    environment:
+      PGADMIN_DEFAULT_EMAIL:    admin@feedbackai.dev
+      PGADMIN_DEFAULT_PASSWORD: admin
+      PGADMIN_CONFIG_SERVER_MODE: "False"
+    ports:
+      - "5050:80"
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - feedbackai_net
+    profiles:
+      - dev
+
+  # ─── FastAPI Backend ─────────────────────────────────────────────────────────
   backend:
     build:
       context: ./backend
       dockerfile: Dockerfile
-    container_name: feedback_backend
+    container_name: feedbackai_backend
     restart: unless-stopped
-    env_file:
-      - ./backend/.env
+    env_file: ./backend/.env
     environment:
-      DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD:-password}@db:5432/feedback_analytics
-      MODEL_PATH: ai_models/sentiment_model.pkl
-      VECTORIZER_PATH: ai_models/vectorizer.pkl
+      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-password}@db:5432/${POSTGRES_DB:-feedbackai}
     volumes:
-      - ./ai_models:/app/ai_models:ro   # Mount your trained model files here
-      - backend_logs:/app/logs
+      - ./backend/ai_models:/app/ai_models:ro
     ports:
       - "8000:8000"
     depends_on:
@@ -46,35 +64,30 @@ services:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
       interval: 30s
       timeout: 10s
+      start_period: 40s
       retries: 3
+    networks:
+      - feedbackai_net
 
-  # ─── React Frontend ────────────────────────────────────────────────────────
+  # ─── React Frontend ──────────────────────────────────────────────────────────
   frontend:
     build:
       context: ./frontend
       dockerfile: Dockerfile
-    container_name: feedback_frontend
+    container_name: feedbackai_frontend
     restart: unless-stopped
     ports:
-      - "3000:80"
+      - "3000:3000"
     depends_on:
-      - backend
-
-  # ─── pgAdmin (optional, dev only) ─────────────────────────────────────────
-  pgadmin:
-    image: dpage/pgadmin4:latest
-    container_name: feedback_pgadmin
-    restart: unless-stopped
-    environment:
-      PGADMIN_DEFAULT_EMAIL: admin@example.com
-      PGADMIN_DEFAULT_PASSWORD: admin
-    ports:
-      - "5050:80"
-    profiles:
-      - dev
-    depends_on:
-      - db
+      backend:
+        condition: service_healthy
+    networks:
+      - feedbackai_net
 
 volumes:
   postgres_data:
-  backend_logs:
+    driver: local
+
+networks:
+  feedbackai_net:
+    driver: bridge

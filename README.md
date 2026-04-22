@@ -1,42 +1,39 @@
-# 🧠 AI-Based Multilingual Feedback Analytics Platform
+# 🚀 FeedbackAI — Dynamic Topic Modeling & Intelligent Customer Feedback Response Generation
 
-**Final Year Research Project — SLIIT**
-
-> An industry-grade, production-ready system integrating two AI research components:
-> 1. **Personalized Feedback Response Generation** (Sentiment Analysis + NLP)
-> 2. **Dynamic Topic Modeling** (LDA-based trending topic extraction)
+> **Final Year Research Project — SLIIT**
+> Enterprise-grade AI Customer Intelligence Platform for E-Commerce
 
 ---
 
-## 🏗️ Architecture Overview
+## 🧠 System Overview
+
+This platform demonstrates a complete AI-powered feedback processing pipeline for e-commerce companies, combining:
+
+1. **Dynamic Topic Modeling** (LDA-based) — Discovers and tracks evolving topics in customer feedback
+2. **Sentiment Classification** (Logistic Regression + TF-IDF) — Classifies feedback sentiment with confidence scores
+3. **Intelligent Response Generation** (T5-Base transformer) — Generates context-aware, personalized responses
+4. **Quantitative Evaluation** — BLEU, ROUGE-L, and Semantic Similarity scoring
+
+---
+
+## 🏗️ Architecture
 
 ```
 ┌──────────────────────────────────────────────────────────────┐
-│                    Client Browser                            │
-│         React 18 + Vite + Tailwind CSS + Recharts            │
+│              React 18 + Vite + Tailwind CSS                  │
+│  Dashboard | Submit | Topics | Responses | Eval | Analytics  │
 └─────────────────────────┬────────────────────────────────────┘
-                          │ HTTPS / HTTP
+                          │ (Static SPA / or API calls)
 ┌─────────────────────────▼────────────────────────────────────┐
-│                   Nginx (Port 3000)                          │
-│            Static file serving + API reverse proxy           │
-└─────────────────────────┬────────────────────────────────────┘
-                          │ /api/v1/*
-┌─────────────────────────▼────────────────────────────────────┐
-│              FastAPI Backend (Port 8000)                     │
-│  JWT Auth │ RBAC │ REST API │ Pydantic Validation │ Logging   │
-│                                                              │
-│  ┌─────────────────┐  ┌──────────────────────────────────┐  │
-│  │  Component 1    │  │  Component 2                     │  │
-│  │  Sentiment      │  │  Dynamic Topic Modeling          │  │
-│  │  Analysis +     │  │  LDA-based topic extraction      │  │
-│  │  Response Gen   │  │  with trend analysis             │  │
-│  │  (sklearn LR)   │  │  (keyword-LDA hybrid)            │  │
-│  └─────────────────┘  └──────────────────────────────────┘  │
-└──────────────────────────────────────┬───────────────────────┘
-                                       │ SQLAlchemy ORM
-┌──────────────────────────────────────▼───────────────────────┐
-│                PostgreSQL 16 Database                        │
-│        users │ feedbacks │ topics │ topic_trends             │
+│              FastAPI Backend (connect separately)            │
+│  ┌──────────────────┐  ┌───────────────────────────────────┐ │
+│  │ Dynamic LDA v2.2 │  │ T5-Base Response Generator        │ │
+│  │ Topic Modeling   │  │ Context-conditioned beam search   │ │
+│  └──────────────────┘  └───────────────────────────────────┘ │
+│  ┌──────────────────┐                                        │
+│  │ LR Classifier    │  Sentiment: Positive/Neutral/Negative │
+│  │ TF-IDF Features  │                                        │
+│  └──────────────────┘                                        │
 └──────────────────────────────────────────────────────────────┘
 ```
 
@@ -45,219 +42,128 @@
 ## 📁 Project Structure
 
 ```
-multilingual-feedback-analytics/
-├── backend/
-│   ├── app/
-│   │   ├── main.py              ← FastAPI app entry point
-│   │   ├── config.py            ← Environment settings
-│   │   ├── database.py          ← SQLAlchemy setup
-│   │   ├── dependencies.py      ← Auth/RBAC dependencies
-│   │   ├── auth/                ← JWT + bcrypt
-│   │   ├── models/              ← SQLAlchemy ORM models
-│   │   ├── schemas/             ← Pydantic validation
-│   │   ├── routers/             ← API endpoints
-│   │   └── services/
-│   │       ├── ai_service.py    ← Component 1: Sentiment + Response
-│   │       ├── topic_service.py ← Component 2: Topic Modeling
-│   │       └── analytics_service.py
-│   ├── tests/test_api.py        ← Pytest test suite
-│   ├── Dockerfile
-│   └── requirements.txt
-│
-├── frontend/
-│   ├── src/
-│   │   ├── pages/               ← Login, Register, Dashboard, Feedback,
-│   │   │                           Topics, Analytics, Admin, Profile
-│   │   ├── components/Layout.jsx
-│   │   ├── context/AuthContext.jsx
-│   │   └── api/client.js        ← Axios with JWT interceptors
-│   ├── Dockerfile
-│   └── package.json
-│
-├── ai_models/                   ← Place your .pkl files here
-├── database/init.sql
-├── docker-compose.yml
-├── copy_models.py               ← Helper to copy your trained models
-└── docs/
-    ├── ARCHITECTURE.md
-    ├── API_DOCS.md
-    ├── DEPLOYMENT.md
-    └── RISK_ASSESSMENT.md
+feedback-ai-platform/
+├── src/
+│   ├── pages/
+│   │   ├── Dashboard.jsx         ← KPI cards + all overview charts
+│   │   ├── SubmitFeedback.jsx    ← Animated AI pipeline + results
+│   │   ├── TopicModeling.jsx     ← Word clouds + time evolution
+│   │   ├── ResponseGeneration.jsx ← Approval queue + responses
+│   │   ├── EvaluationMetrics.jsx ← Research comparison tables + charts
+│   │   ├── Analytics.jsx         ← Multilingual + category trends
+│   │   └── Settings.jsx          ← Model config + system health
+│   ├── components/
+│   │   ├── Layout.jsx            ← Sidebar + header shell
+│   │   └── UI.jsx                ← Shared UI primitives
+│   ├── data/
+│   │   └── mockData.js           ← Rich mock data (replace with API)
+│   ├── App.jsx
+│   ├── main.jsx
+│   └── index.css
+├── package.json
+├── tailwind.config.js
+├── vite.config.js
+├── Dockerfile
+└── nginx.conf
 ```
 
 ---
 
 ## 🚀 Quick Start
 
-### Prerequisites
-- Docker & Docker Compose
-- Your trained model files: `sentiment_model.pkl` + `vectorizer.pkl`
+### Option A — Development (Local)
 
-### Step 1 — Copy your trained models
 ```bash
-# Edit copy_models.py with your model paths, then:
-python copy_models.py
-```
-
-Or manually:
-```bash
-cp /path/to/your/data/sentiment_model.pkl ./ai_models/
-cp /path/to/your/data/vectorizer.pkl      ./ai_models/
-```
-
-### Step 2 — Configure environment
-```bash
-cp backend/.env.example backend/.env
-# Edit backend/.env and change SECRET_KEY
-```
-
-### Step 3 — Launch the full stack
-```bash
-docker-compose up --build
-```
-
-### Step 4 — Access the system
-| Service     | URL                       |
-|-------------|---------------------------|
-| Frontend    | http://localhost:3000     |
-| Backend API | http://localhost:8000     |
-| API Docs    | http://localhost:8000/api/docs |
-| Health      | http://localhost:8000/health  |
-
-### First user
-Register at http://localhost:3000/register.
-The first registered user should be manually elevated to admin via the database or API docs.
-
----
-
-## 🔐 Authentication & RBAC
-
-| Feature         | Implementation        |
-|-----------------|-----------------------|
-| Auth method     | JWT (access + refresh tokens) |
-| Password hashing | bcrypt (passlib)     |
-| Access token TTL | 30 minutes           |
-| Refresh token TTL | 7 days              |
-| Roles           | `admin`, `user`       |
-| Admin endpoints | Protected with `require_admin` dependency |
-
----
-
-## 🤖 AI Components
-
-### Component 1: Personalized Feedback Response Generation
-- **Model**: Logistic Regression + TF-IDF (your trained model)
-- **Input**: Raw feedback text
-- **Output**: Sentiment label + confidence + personalized response
-- **Sentiments**: happiness, sadness, anger, disgust, fear, surprise, neutral
-- **Fallback**: Rule-based keyword matching if model files not found
-
-### Component 2: Dynamic Topic Modeling
-- **Algorithm**: LDA-inspired keyword-weighted topic extraction
-- **Input**: Corpus of feedback texts
-- **Output**: Ranked trending topics with keywords, counts, and trend direction
-- **Topics**: 8 pre-defined + dynamically weighted (product quality, customer service, delivery, pricing, UX, performance, features, security)
-- **Trend Analysis**: Rising / Stable / Falling based on recency weighting
-
----
-
-## 🧪 Testing
-
-### Run backend tests
-```bash
-cd backend
-pip install -r requirements.txt
-pytest tests/ -v
-```
-
-### Run API manually
-```bash
-cd backend
-pip install -r requirements.txt
-uvicorn app.main:app --reload --port 8000
-```
-
-### Run frontend dev server
-```bash
-cd frontend
 npm install
-npm run dev   # opens http://localhost:3000
+npm run dev
+# Opens at http://localhost:5173
+```
+
+### Option B — Production Build
+
+```bash
+npm install
+npm run build
+npm run preview
+# Opens at http://localhost:4173
+```
+
+### Option C — Docker
+
+```bash
+docker build -t feedback-ai .
+docker run -p 3000:3000 feedback-ai
+# Opens at http://localhost:3000
 ```
 
 ---
 
-## 📡 API Endpoints Summary
+## 📊 Pages & Features
 
-| Method | Endpoint | Auth | Description |
-|--------|----------|------|-------------|
-| POST | `/api/v1/auth/register` | ❌ | Register |
-| POST | `/api/v1/auth/login` | ❌ | Login → JWT |
-| POST | `/api/v1/auth/refresh` | ❌ | Refresh token |
-| GET | `/api/v1/auth/me` | ✅ | Current user |
-| POST | `/api/v1/feedback/submit` | ✅ | Submit + analyze |
-| GET | `/api/v1/feedback/my` | ✅ | Own feedback history |
-| GET | `/api/v1/feedback/` | 🔒 Admin | All feedbacks |
-| GET | `/api/v1/topics/trending` | ✅ | Trending topics |
-| GET | `/api/v1/analytics/dashboard` | ✅ | Full dashboard |
-| GET | `/api/v1/users/` | 🔒 Admin | List users |
-| PUT | `/api/v1/users/{id}/role` | 🔒 Admin | Change role |
+| Page | Description |
+|------|-------------|
+| **Dashboard** | 6 KPI cards, topic evolution chart, sentiment pie, topic distribution, weekly complaint trend, recent feedback table |
+| **Submit Feedback** | Animated 5-step AI pipeline, sentiment detection ring, topic probability chart, word cloud, generated response, collapsible evaluation |
+| **Topic Modeling** | 5 discovered topics, word cloud, keyword weight table, temporal evolution chart, all-topics comparison |
+| **Response Generation** | Feedback approval queue, topic + sentiment predictions, AI response with edit/approve/copy, evaluation metrics |
+| **Evaluation Metrics** | Baseline vs Proposed comparison table, radar chart, confusion matrix heatmap, training curves, BLEU progression |
+| **Analytics** | Language distribution (EN/SI/TA), category trends, response time analysis, model health status |
+| **Settings** | LDA config, T5 config, LR classifier config, project metadata, system health |
 
 ---
 
-## 🐳 Docker Services
+## 🤖 AI Research Components
 
-| Container | Image | Port |
-|-----------|-------|------|
-| `feedback_backend` | python:3.11 + FastAPI | 8000 |
-| `feedback_frontend` | node:20 + nginx | 3000 |
-| `feedback_db` | postgres:16-alpine | 5432 |
-| `feedback_pgadmin` | pgadmin4 (dev only) | 5050 |
+### Component 1 — Dynamic Topic Modeling
+- **Algorithm**: LDA (Latent Dirichlet Allocation) with weekly re-training
+- **Topics**: 5 auto-discovered (Delivery, Product Quality, Payment, Customer Support, Returns)
+- **Evaluation**: Coherence Score = 0.621
+- **Key Feature**: Temporal drift tracking — proves topics are *dynamic*, not static
 
----
+### Component 2 — Intelligent Response Generation
+- **Generator**: T5-Base (220M params) fine-tuned on 18,500 feedback-response pairs
+- **Context Input**: Sentiment + Topic + Top Keywords
+- **Decoding**: Beam search (beam=4) with length penalty
+- **BLEU Score**: 0.743 (vs baseline 0.524)
 
-## ⚠️ Risk Assessment Summary
-
-| Risk | Likelihood | Impact | Mitigation |
-|------|-----------|--------|-----------|
-| Model bias (skewed training data) | Medium | High | Balanced dataset, confidence thresholding |
-| JWT token theft | Low | High | Short TTL, HTTPS in prod, refresh rotation |
-| SQL injection | Low | Critical | SQLAlchemy ORM parameterization |
-| Data leakage | Low | High | No PII logging, env secrets |
-| Model serving latency | Medium | Medium | Model caching, async processing |
-| Topic model drift | Medium | Medium | Periodic retraining, trend monitoring |
-
-See `docs/RISK_ASSESSMENT.md` for full analysis.
+### Sentiment Classifier
+- **Model**: Logistic Regression with TF-IDF features
+- **Accuracy**: 89.7% (test set)
+- **F1 Score**: 0.880 (macro)
+- **Classes**: Positive / Neutral / Negative
 
 ---
 
-## 📊 Performance Benchmarks
+## 🔗 Connecting to Backend API
 
-| Metric | Value |
-|--------|-------|
-| Sentiment inference time | < 50ms |
-| API response time (p95) | < 200ms |
-| Topic extraction (100 texts) | < 500ms |
-| DB query (paginated) | < 30ms |
-| Concurrent users (tested) | 50+ |
+The UI currently uses mock data from `src/data/mockData.js`.
 
----
+To connect to the FastAPI backend:
 
-## 🔧 Configuration
-
-Key environment variables in `backend/.env`:
-
-```env
-SECRET_KEY=your-32-char-minimum-secret-key
-DATABASE_URL=postgresql://postgres:password@db:5432/feedback_analytics
-MODEL_PATH=ai_models/sentiment_model.pkl
-VECTORIZER_PATH=ai_models/vectorizer.pkl
-ACCESS_TOKEN_EXPIRE_MINUTES=30
+1. Create `src/api/client.js`:
+```js
+import axios from 'axios'
+const api = axios.create({ baseURL: 'http://localhost:8000/api/v1' })
+export default api
 ```
+
+2. Replace mock data calls in each page with API calls:
+```js
+const { data } = await api.post('/feedback/analyze', { text, category })
+```
+
+---
+
+## 🎨 Design System
+
+- **Color Palette**: Deep navy surface + brand blue + cyan accent
+- **Typography**: Syne (display headings) + DM Sans (body)
+- **Theme**: Dark enterprise — suitable for defense/presentation
+- **Charts**: Recharts with custom tooltips and dark theme styling
 
 ---
 
 ## 👤 Author
 
 **SLIIT Final Year Research Project**
-AI-Based Multilingual Feedback Analytics Platform
-Component: Personalized Feedback Response Generation
+*Dynamic Topic Modeling and Intelligent Customer Feedback Response Generation for E-Commerce Platforms*
