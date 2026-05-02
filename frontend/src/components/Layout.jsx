@@ -64,7 +64,7 @@ export default function Layout({ children }) {
           })}
         </nav>
 
-        {/* Model Info */}
+        {/* Model Info 
         {sidebarOpen && (
           <div className="px-3 py-3 mx-2 mb-3 rounded-xl bg-surface-700/50 border border-white/5">
             <div className="flex items-center gap-2 mb-2">
@@ -77,7 +77,7 @@ export default function Layout({ children }) {
               <div>LR Classifier v3.1</div>
             </div>
           </div>
-        )}
+        )*/}
 
         {/* Collapse btn */}
         <button

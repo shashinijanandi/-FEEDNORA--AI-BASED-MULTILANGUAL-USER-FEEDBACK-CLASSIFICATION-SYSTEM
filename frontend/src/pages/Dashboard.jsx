@@ -115,7 +115,7 @@ export default function Dashboard() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {/* Topic Distribution — live */}
         <ChartCard title="Topic Distribution"
-          subtitle="Live · detected_topic from feedbacks table (your LDA model output)">
+          subtitle="Live · detected_topic from feedbacks table ">
           {!topic_dist?.length ? (
             <div className="flex items-center justify-center h-40 text-slate-600 text-sm">
               Submit feedback to see topic distribution
