@@ -36,8 +36,8 @@ export default function Layout({ children }) {
           </div>
           {sidebarOpen && (
             <div className="overflow-hidden">
-              <div className="font-display font-bold text-white text-sm leading-tight whitespace-nowrap">FeedbackAI</div>
-              <div className="text-[10px] text-brand-400 whitespace-nowrap">Intelligence Platform</div>
+              <div className="font-display font-bold text-white text-sm leading-tight whitespace-nowrap">FeedNora</div>
+              {/*<div className="text-[10px] text-brand-400 whitespace-nowrap">Intelligence Platform</div>*/}
             </div>
           )}
         </div>
@@ -113,11 +113,11 @@ export default function Layout({ children }) {
             <span className="text-[11px] text-slate-400">24,718 records</span>
           </div>
 
-          {/* Date range */}
+          {/* Date range 
           <div className="hidden md:flex items-center gap-2 px-3 py-1.5 bg-surface-700 rounded-lg border border-white/5 cursor-pointer hover:bg-surface-600 transition-colors">
             <Calendar size={12} className="text-slate-400" />
             <span className="text-[11px] text-slate-400">Aug 2024 — Mar 2025</span>
-          </div>
+          </div>*/}
 
           {/* Lang */}
           <div className="hidden lg:flex items-center gap-2 px-3 py-1.5 bg-surface-700 rounded-lg border border-white/5">
@@ -154,7 +154,7 @@ export default function Layout({ children }) {
             )}
           </div>
 
-          {/* Profile */}
+          {/* Profile 
           <div className="flex items-center gap-2.5 pl-3 border-l border-white/5 cursor-pointer">
             <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-brand-500 to-accent-cyan flex items-center justify-center text-white font-bold text-xs">
               RK
@@ -164,7 +164,7 @@ export default function Layout({ children }) {
               <div className="text-[10px] text-slate-500">SLIIT · Admin</div>
             </div>
             <ChevronDown size={13} className="text-slate-500 hidden md:block" />
-          </div>
+          </div>*/}
         </header>
 
         {/* Page Content */}
