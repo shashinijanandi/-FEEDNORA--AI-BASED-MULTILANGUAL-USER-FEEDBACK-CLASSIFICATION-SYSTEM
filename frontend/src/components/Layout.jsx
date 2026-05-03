@@ -115,11 +115,11 @@ export default function Layout({ children }) {
 
           <div className="flex-1" />
 
-          {/* Dataset pill */}
+          {/* Dataset pill 
           <div className="hidden md:flex items-center gap-2 px-3 py-1.5 bg-surface-700 rounded-lg border border-white/5">
             <Database size={12} className="text-brand-400" />
             <span className="text-[11px] text-slate-400">24,718 records</span>
-          </div>
+          </div>*/}
 
           <button
             onClick={toggleTheme}
