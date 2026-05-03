@@ -14,7 +14,7 @@ const navItems = [
   { path: '/responses',   icon: Sparkles,          label: 'Response Generation' },
   { path: '/evaluation',  icon: BarChart3,          label: 'Evaluation Metrics' },
   { path: '/analytics',   icon: LineChart,          label: 'Analytics' },
-  { path: '/settings',    icon: Settings,           label: 'Settings' },
+  { path: '/settings',    icon: User,              label: 'User' },
 ]
 
 export default function Layout({ children }) {
