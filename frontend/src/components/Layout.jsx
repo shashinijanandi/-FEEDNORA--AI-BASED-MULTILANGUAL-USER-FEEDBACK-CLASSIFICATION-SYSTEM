@@ -1,10 +1,10 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import {
   LayoutDashboard, MessageSquarePlus, BrainCircuit, Sparkles,
   BarChart3, LineChart, Settings, ChevronRight, Bell, Search,
   User, Cpu, Database, Calendar, Menu, X, ChevronDown, Activity,
-  Zap, Globe
+  Zap, Globe, Sun, Moon
 } from 'lucide-react'
 
 const navItems = [
@@ -22,8 +22,16 @@ export default function Layout({ children }) {
   const navigate = useNavigate()
   const [sidebarOpen, setSidebarOpen] = useState(true)
   const [notifOpen, setNotifOpen] = useState(false)
+  const [theme, setTheme] = useState(() => localStorage.getItem('theme') || 'dark')
 
   const currentPage = navItems.find(i => i.path === location.pathname)?.label || 'Dashboard'
+
+  useEffect(() => {
+    document.documentElement.classList.toggle('light', theme === 'light')
+    localStorage.setItem('theme', theme)
+  }, [theme])
+
+  const toggleTheme = () => setTheme(prev => (prev === 'dark' ? 'light' : 'dark'))
 
   return (
     <div className="flex h-screen overflow-hidden bg-surface-900">
@@ -112,6 +120,15 @@ export default function Layout({ children }) {
             <Database size={12} className="text-brand-400" />
             <span className="text-[11px] text-slate-400">24,718 records</span>
           </div>
+
+          <button
+            onClick={toggleTheme}
+            className="hidden md:flex items-center gap-2 px-3 py-1.5 bg-surface-700 rounded-lg border border-white/5 text-slate-400 hover:text-white hover:bg-surface-600 transition-colors"
+            title={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}
+          >
+            {theme === 'dark' ? <Sun size={12} className="text-accent-amber" /> : <Moon size={12} className="text-brand-500" />}
+            <span className="text-[11px]">{theme === 'dark' ? 'Light mode' : 'Dark mode'}</span>
+          </button>
 
           {/* Date range 
           <div className="hidden md:flex items-center gap-2 px-3 py-1.5 bg-surface-700 rounded-lg border border-white/5 cursor-pointer hover:bg-surface-600 transition-colors">

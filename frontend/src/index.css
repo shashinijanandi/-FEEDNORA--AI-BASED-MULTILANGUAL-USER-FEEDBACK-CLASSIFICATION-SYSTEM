@@ -151,3 +151,33 @@
   50%       { transform: scale(1.4); opacity: 0.6; }
 }
 .dot-pulse { animation: dotPulse 1.5s ease-in-out infinite; }
+
+/* Light theme (enabled when html has class="light") */
+html.light body {
+  @apply bg-slate-100 text-slate-900;
+  background-image:
+    radial-gradient(ellipse at 20% 10%, rgba(59, 130, 246, 0.08) 0%, transparent 60%),
+    radial-gradient(ellipse at 80% 90%, rgba(14, 165, 233, 0.08) 0%, transparent 50%);
+}
+
+html.light .bg-surface-900 { background-color: #f1f5f9 !important; }
+html.light .bg-surface-800 { background-color: #ffffff !important; }
+html.light .bg-surface-800\/70 { background-color: rgba(255, 255, 255, 0.9) !important; }
+html.light .bg-surface-700 { background-color: #f8fafc !important; }
+html.light .bg-surface-700\/50 { background-color: rgba(248, 250, 252, 0.8) !important; }
+html.light .bg-surface-700\/40 { background-color: rgba(248, 250, 252, 0.7) !important; }
+html.light .bg-surface-800\/50 { background-color: rgba(255, 255, 255, 0.7) !important; }
+html.light .bg-surface-600 { background-color: #e2e8f0 !important; }
+
+html.light .border-white\/5,
+html.light .border-white\/10,
+html.light .border-white\/8 {
+  border-color: rgba(15, 23, 42, 0.12) !important;
+}
+
+html.light .text-white { color: #0f172a !important; }
+html.light .text-slate-200 { color: #1e293b !important; }
+html.light .text-slate-300 { color: #334155 !important; }
+html.light .text-slate-400 { color: #475569 !important; }
+html.light .text-slate-500 { color: #64748b !important; }
+html.light .text-slate-600 { color: #64748b !important; }
