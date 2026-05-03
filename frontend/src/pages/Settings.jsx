@@ -88,7 +88,7 @@ export default function Settings() {
     <div className="p-6 animate-fade-in">
       <div className="mb-6 flex items-start justify-between">
         <div>
-          <h1 className="font-display text-2xl font-bold text-white tracking-tight">User Account</h1>
+          <h1 className="font-display text-2xl font-bold text-white tracking-tight">User Profile</h1>
         </div>
       </div>
 

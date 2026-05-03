@@ -28,7 +28,20 @@ function TrendBadge({ trend, delta }) {
 
 export default function TopicModeling() {
   const { data: topics, loading, error, refetch } = useApi(() => topicsAPI.list())
+  const { data: artifactData } = useApi(() => topicsAPI.artifacts())
   const [selectedId, setSelectedId] = useState(null)
+  const [reloadState, setReloadState] = useState({ loading: false, error: '', ok: '' })
+
+  const refreshFromTrainedModel = async () => {
+    setReloadState({ loading: true, error: '', ok: '' })
+    try {
+      const res = await topicsAPI.reload()
+      await refetch()
+      setReloadState({ loading: false, error: '', ok: `Synced ${res.data?.synced_topics ?? 0} topics from trained artifacts.` })
+    } catch (e) {
+      setReloadState({ loading: false, error: e?.response?.data?.detail || 'Failed to sync trained model artifacts.', ok: '' })
+    }
+  }
 
   if (loading) return <LoadingSpinner message="Loading topic model data…" />
   if (error)   return <div className="p-6"><ApiError error={error} onRetry={refetch} /></div>
@@ -40,6 +53,12 @@ export default function TopicModeling() {
 
   const activeId = selectedId || topics[0]?.id
   const selected = topics.find(t => t.id === activeId) || topics[0]
+  const modelMeta = {
+    version: selected?.model_version || 'unknown',
+    trainedAt: selected?.trained_at,
+    datasetSize: selected?.dataset_size,
+  }
+  const artifacts = artifactData?.items || []
 
   return (
     <div className="p-6 animate-fade-in">
@@ -49,9 +68,22 @@ export default function TopicModeling() {
           <p className="text-sm text-slate-500 mt-1">
             LDA-based topic extraction · {topics.length} topics discovered · Live from <span className="font-mono text-brand-400">topics</span> + <span className="font-mono text-brand-400">topic_time_series</span> tables
           </p>
+          <p className="text-xs text-slate-500 mt-1">
+            Model <span className="font-mono text-brand-400">{modelMeta.version}</span>
+            {modelMeta.trainedAt ? ` · Trained ${new Date(modelMeta.trainedAt).toLocaleString()}` : ''}
+            {typeof modelMeta.datasetSize === 'number' ? ` · Dataset ${modelMeta.datasetSize.toLocaleString()} rows` : ''}
+          </p>
         </div>
-        <button onClick={refetch} className="btn-ghost text-xs"><RefreshCw size={13}/> Refresh</button>
+        <div className="flex gap-2">
+          <button onClick={refreshFromTrainedModel} className="btn-primary text-xs" disabled={reloadState.loading}>
+            <RefreshCw size={13} className={reloadState.loading ? 'animate-spin' : ''} />
+            {reloadState.loading ? 'Syncing…' : 'Sync Trained Model'}
+          </button>
+          <button onClick={refetch} className="btn-ghost text-xs"><RefreshCw size={13}/> Refresh</button>
+        </div>
       </div>
+      {reloadState.error && <div className="mb-4 text-xs text-rose-400">{reloadState.error}</div>}
+      {reloadState.ok && <div className="mb-4 text-xs text-emerald-400">{reloadState.ok}</div>}
 
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
         {/* Topic list */}
@@ -117,7 +149,7 @@ export default function TopicModeling() {
             </div>
 
             {/* Time evolution — from topic_time_series DB table */}
-            {selected.time_series?.length > 0 && (
+            {selected.time_series?.length > 0 ? (
               <div className="card p-5">
                 <SectionHeader title="Topic Probability Over Time"
                   subtitle="Dynamic evolution · topic_time_series table · weekly re-training" />
@@ -139,6 +171,10 @@ export default function TopicModeling() {
                   </AreaChart>
                 </ResponsiveContainer>
               </div>
+            ) : (
+              <div className="card p-5 text-sm text-slate-500">
+                No time-series points for this topic yet. Re-train and sync to populate trend history.
+              </div>
             )}
 
             {/* All topics bar comparison */}
@@ -157,6 +193,21 @@ export default function TopicModeling() {
                 </BarChart>
               </ResponsiveContainer>
             </div>
+
+            {artifacts.length > 0 && (
+              <div className="card p-5">
+                <SectionHeader title="Model Artifacts (Optional)" subtitle="Generated PNG outputs from latest training run" />
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  {artifacts.map(item => (
+                    <a key={item.name} href={item.absoluteUrl} target="_blank" rel="noreferrer"
+                      className="p-3 rounded-lg bg-surface-800/50 border border-white/5 hover:border-white/20 transition">
+                      <div className="text-sm text-white">{item.name}</div>
+                      <div className="text-xs text-slate-500 mt-1">Open generated artifact</div>
+                    </a>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         )}
       </div>

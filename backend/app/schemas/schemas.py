@@ -137,6 +137,9 @@ class TopicOut(BaseModel):
     trend:       TrendDirection
     trend_delta: float
     time_series: Optional[List[TimeSeriesPoint]] = []
+    model_version: Optional[str] = None
+    trained_at: Optional[str] = None
+    dataset_size: Optional[int] = None
 
     class Config:
         from_attributes = True

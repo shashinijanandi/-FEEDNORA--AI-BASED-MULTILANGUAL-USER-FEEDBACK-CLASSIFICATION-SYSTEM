@@ -1,12 +1,15 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from contextlib import asynccontextmanager
 import logging
+from pathlib import Path
 
 from app.config import get_settings
 from app.database import create_tables, SessionLocal
 from app.utils.logger import setup_logging
 from app.routers import auth, feedback, topics, analytics, users
+from app.services.topic_artifact_service import sync_topics_from_artifacts
 
 logger = logging.getLogger(__name__)
 settings = get_settings()
@@ -116,7 +119,9 @@ async def lifespan(app: FastAPI):
     create_tables()
     db = SessionLocal()
     try:
-        seed_topics(db)
+        synced = sync_topics_from_artifacts(db)
+        if synced == 0:
+            seed_topics(db)
         seed_feedback(db)
     finally:
         db.close()
@@ -147,6 +152,10 @@ app.add_middleware(
 # Include routers
 for router_module in [auth, feedback, topics, analytics, users]:
     app.include_router(router_module.router, prefix=settings.API_PREFIX)
+
+artifacts_dir = Path(settings.TOPIC_ARTIFACTS_DIR)
+if artifacts_dir.exists():
+    app.mount("/artifacts", StaticFiles(directory=str(artifacts_dir)), name="artifacts")
 
 
 @app.get("/health")
