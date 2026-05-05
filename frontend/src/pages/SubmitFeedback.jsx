@@ -157,7 +157,7 @@ export default function SubmitFeedback() {
               className="btn-primary w-full justify-center py-3 disabled:opacity-50 disabled:cursor-not-allowed">
               {analyzing
                 ? <><div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"/>Calling API…</>
-                : <><Send size={15}/>Analyze with Your Model</>}
+                : <><Send size={15}/>Analyze</>}
             </button>
 
             {error && (

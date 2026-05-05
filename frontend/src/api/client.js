@@ -84,9 +84,10 @@ export const feedbackAPI = {
 
 // ─── Topics ───────────────────────────────────────────────────────────────────
 export const topicsAPI = {
-  list:   ()   => api.get('/topics/'),
+  list:   (params = {}) => api.get('/topics/', { params }),
   getOne: (id) => api.get(`/topics/${id}`),
   reload: ()   => api.post('/topics/reload'),
+  latestFromFeedback: () => api.get('/topics/latest-from-feedback'),
   artifacts: async () => {
     const { data } = await api.get('/topics/artifacts')
     return {

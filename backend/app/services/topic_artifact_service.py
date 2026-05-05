@@ -1,6 +1,7 @@
 import csv
 import logging
 from dataclasses import dataclass
+from functools import lru_cache
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Optional
@@ -76,7 +77,12 @@ def _to_trend(raw: Any) -> TrendDirection:
     return TrendDirection.Stable
 
 
+@lru_cache(maxsize=1)
 def get_trained_topic_metadata() -> TopicModelMetadata:
+    """
+    Cached: counting labeled_feedback.csv lines is O(rows) and must not run once per topic
+    (list view serializes 1000+ topics → was exceeding the HTTP client 30s timeout).
+    """
     settings = get_settings()
     topics_csv = Path(settings.TOPIC_OUTPUT_CSV_PATH)
     dataset_csv = Path(settings.TOPIC_DATASET_CSV_PATH)
@@ -99,6 +105,44 @@ def get_trained_topic_metadata() -> TopicModelMetadata:
     )
 
 
+def clear_trained_topic_metadata_cache() -> None:
+    get_trained_topic_metadata.cache_clear()
+
+
+def _unique_topic_name(
+    base_name: str,
+    cluster_id: Optional[str],
+    row_index: int,
+    used_lower: set,
+) -> str:
+    """
+    topics.name is UNIQUE in the DB; BERTopic-style exports can repeat topic_name
+    for different cluster_id values. First row keeps the label; collisions get
+    a stable suffix from cluster_id or row index.
+    """
+    raw = str(base_name).strip() if base_name else ""
+    if not raw:
+        raw = f"Topic {row_index}"
+    key = raw.lower()
+    if key not in used_lower:
+        used_lower.add(key)
+        return raw
+    cid = str(cluster_id).strip() if cluster_id not in (None, "") else ""
+    if cid:
+        candidate = f"{raw} (cluster {cid})"
+    else:
+        candidate = f"{raw} (#{row_index})"
+    # Extremely rare: still duplicate after suffix
+    candidate_key = candidate.lower()
+    n = 2
+    while candidate_key in used_lower:
+        candidate = f"{raw} (cluster {cid or row_index}-{n})"
+        candidate_key = candidate.lower()
+        n += 1
+    used_lower.add(candidate_key)
+    return candidate
+
+
 def sync_topics_from_artifacts(db: Session) -> int:
     """
     Read trained topic output CSV and upsert data into topics tables.
@@ -118,15 +162,40 @@ def sync_topics_from_artifacts(db: Session) -> int:
     db.query(TopicTimeSeries).delete()
     db.query(Topic).delete()
 
+    # Pre-compute corpus share from n_items / document counts when probability is absent.
+    doc_counts: List[int] = []
+    for row in rows:
+        doc_counts.append(
+            _as_int(
+                _get_first(
+                    row,
+                    ["n_items", "document_count", "doc_count", "count", "size"],
+                    0,
+                ),
+                0,
+            )
+        )
+    total_docs = sum(doc_counts)
+    used_names_lower: set = set()
     active_topics = 0
     for idx, row in enumerate(rows, start=1):
-        name = _get_first(row, ["topic_name", "label", "name"], f"Topic {idx}")
-        doc_count = _as_int(_get_first(row, ["document_count", "doc_count", "count", "size"], 0), 0)
-        probability_raw = _as_float(_get_first(row, ["probability", "pct", "percentage", "share"], 0.0), 0.0)
-        probability = probability_raw / 100.0 if probability_raw > 1.0 else probability_raw
+        base_label = _get_first(row, ["topic_name", "label", "name"], f"Topic {idx}")
+        cluster_id = _get_first(row, ["cluster_id", "topic_id", "id"], None)
+        name = _unique_topic_name(base_label, cluster_id, idx, used_names_lower)
+        doc_count = doc_counts[idx - 1]
+
+        probability_raw = _as_float(
+            _get_first(row, ["probability", "pct", "percentage", "share"], 0.0), 0.0
+        )
+        if probability_raw > 0:
+            probability = probability_raw / 100.0 if probability_raw > 1.0 else probability_raw
+        elif total_docs > 0 and doc_count > 0:
+            probability = doc_count / total_docs
+        else:
+            probability = 0.0
 
         topic = Topic(
-            name=str(name),
+            name=name,
             color=TOPIC_COLORS[(idx - 1) % len(TOPIC_COLORS)],
             keywords=_parse_keywords(_get_first(row, ["keywords", "top_keywords"], "")),
             probability=probability,
@@ -150,4 +219,5 @@ def sync_topics_from_artifacts(db: Session) -> int:
         active_topics += 1
 
     db.commit()
+    clear_trained_topic_metadata_cache()
     return active_topics
