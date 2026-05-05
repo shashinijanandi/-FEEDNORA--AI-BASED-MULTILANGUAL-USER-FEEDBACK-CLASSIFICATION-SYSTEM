@@ -1,4 +1,4 @@
-from pydantic import BaseModel, EmailStr, field_validator
+from pydantic import BaseModel, EmailStr, field_validator, ConfigDict
 from typing import Optional, List, Any
 from datetime import datetime
 from app.models.models import UserRole, SentimentLabel, ApprovalStatus, TrendDirection
@@ -69,12 +69,16 @@ class TopicResult(BaseModel):
     all_topics:  List[dict]
 
 class EvaluationMetrics(BaseModel):
+    model_config = ConfigDict(protected_namespaces=())
+
     bleu_score:          float
     rouge_l_score:       float
     semantic_similarity: float
     model_confidence:    float
 
 class FeedbackAnalysisResult(BaseModel):
+    model_config = ConfigDict(protected_namespaces=())
+
     id:                 int
     text:               str
     sentiment:          SentimentLabel
@@ -86,6 +90,8 @@ class FeedbackAnalysisResult(BaseModel):
     created_at:         datetime
 
 class FeedbackOut(BaseModel):
+    model_config = ConfigDict(protected_namespaces=(), from_attributes=True)
+
     id:                 int
     text:               str
     language:           Optional[str]
@@ -102,9 +108,6 @@ class FeedbackOut(BaseModel):
     semantic_similarity:Optional[float]
     model_confidence:   Optional[float]
     created_at:         datetime
-
-    class Config:
-        from_attributes = True
 
 class FeedbackApprove(BaseModel):
     response: Optional[str] = None   # override response text (optional)
@@ -128,6 +131,8 @@ class TimeSeriesPoint(BaseModel):
     doc_count:   int
 
 class TopicOut(BaseModel):
+    model_config = ConfigDict(protected_namespaces=(), from_attributes=True)
+
     id:          int
     name:        str
     color:       str
@@ -137,9 +142,9 @@ class TopicOut(BaseModel):
     trend:       TrendDirection
     trend_delta: float
     time_series: Optional[List[TimeSeriesPoint]] = []
-
-    class Config:
-        from_attributes = True
+    model_version: Optional[str] = None
+    trained_at: Optional[str] = None
+    dataset_size: Optional[int] = None
 
 
 # ─── Analytics / Dashboard ────────────────────────────────────────────────────

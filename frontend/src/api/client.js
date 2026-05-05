@@ -1,6 +1,7 @@
 import axios from 'axios'
 
 const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1'
+const API_ORIGIN = BASE_URL.replace(/\/api\/v1\/?$/, '')
 
 const api = axios.create({
   baseURL: BASE_URL,
@@ -83,8 +84,20 @@ export const feedbackAPI = {
 
 // ─── Topics ───────────────────────────────────────────────────────────────────
 export const topicsAPI = {
-  list:   ()   => api.get('/topics/'),
+  list:   (params = {}) => api.get('/topics/', { params }),
   getOne: (id) => api.get(`/topics/${id}`),
+  reload: ()   => api.post('/topics/reload'),
+  latestFromFeedback: () => api.get('/topics/latest-from-feedback'),
+  artifacts: async () => {
+    const { data } = await api.get('/topics/artifacts')
+    return {
+      ...data,
+      items: (data.items || []).map(item => ({
+        ...item,
+        absoluteUrl: `${API_ORIGIN}${item.url}`,
+      })),
+    }
+  },
 }
 
 // ─── Analytics ────────────────────────────────────────────────────────────────

@@ -30,6 +30,10 @@ class Settings(BaseSettings):
     TOPIC_CONFIG_PATH: str = "ai_models/config.json"
     TOPIC_SCHEMA_PATH: str = "ai_models/topic_schema.json"
     TOPIC_SENTENCE_MODEL_DIR: str = "ai_models/sentence_model"
+    TOPIC_OUTPUT_CSV_PATH: str = "../artifacts/topics.csv"
+    TOPIC_DATASET_CSV_PATH: str = "../artifacts/labeled_feedback.csv"
+    TOPIC_MODEL_VERSION: str = "v1"
+    TOPIC_ARTIFACTS_DIR: str = "../artifacts"
 
     # CORS
     ALLOWED_ORIGINS: str = "http://localhost:3000,http://localhost:5173"

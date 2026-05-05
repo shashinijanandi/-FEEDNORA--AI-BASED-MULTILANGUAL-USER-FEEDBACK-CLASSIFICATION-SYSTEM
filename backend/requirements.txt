@@ -28,7 +28,8 @@ scipy==1.13.1
 nltk==3.8.1
 
 # Topic modeling
-sentence-transformers
+sentence-transformers==2.7.0
+torch==2.3.1+cpu
 
 # Evaluation
 rouge-score==0.1.2

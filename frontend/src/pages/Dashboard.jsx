@@ -24,9 +24,9 @@ export default function Dashboard() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="font-display text-2xl font-bold text-white tracking-tight">Intelligence Overview</h1>
-          <p className="text-sm text-slate-500 mt-1">
+          {/*<p className="text-sm text-slate-500 mt-1">
             All data live from PostgreSQL · Processed by your trained AI models
-          </p>
+          </p*/}
         </div>
         <button onClick={refetch} className="btn-ghost text-xs"><RefreshCw size={13}/> Refresh</button>
       </div>
@@ -115,7 +115,7 @@ export default function Dashboard() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {/* Topic Distribution — live */}
         <ChartCard title="Topic Distribution"
-          subtitle="Live · detected_topic from feedbacks table (your LDA model output)">
+          subtitle="Live · detected_topic from feedbacks table ">
           {!topic_dist?.length ? (
             <div className="flex items-center justify-center h-40 text-slate-600 text-sm">
               Submit feedback to see topic distribution
@@ -166,9 +166,9 @@ export default function Dashboard() {
         <div className="flex items-center justify-between p-5 border-b border-white/5">
           <div>
             <h2 className="section-title">Recent Feedback</h2>
-            <p className="text-xs text-slate-500 mt-0.5">
+            {/*<p className="text-xs text-slate-500 mt-0.5">
               Live · feedbacks table · sentiment + topic from your AI models
-            </p>
+            </p*/}
           </div>
           <button onClick={refetch} className="btn-ghost text-xs"><RefreshCw size={12}/> Refresh</button>
         </div>

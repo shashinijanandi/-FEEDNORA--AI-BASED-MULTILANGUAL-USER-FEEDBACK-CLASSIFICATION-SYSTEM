@@ -53,8 +53,14 @@ services:
     env_file: ./backend/.env
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-password}@db:5432/${POSTGRES_DB:-feedbackai}
+      # Trained topic CSV + PNGs: host folder feednora/artifacts → /artifacts in container
+      TOPIC_OUTPUT_CSV_PATH: /artifacts/topics.csv
+      TOPIC_DATASET_CSV_PATH: /artifacts/labeled_feedback.csv
+      TOPIC_ARTIFACTS_DIR: /artifacts
     volumes:
       - ./backend/ai_models:/app/ai_models:ro
+      # Repo layout: …/feednora/artifacts next to …/feednora/feedback-ai-platform-v3 (4)/feedback-ai-platform
+      - ../../artifacts:/artifacts:ro
     ports:
       - "8000:8000"
     depends_on:

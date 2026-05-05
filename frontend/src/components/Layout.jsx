@@ -1,10 +1,10 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import {
   LayoutDashboard, MessageSquarePlus, BrainCircuit, Sparkles,
   BarChart3, LineChart, Settings, ChevronRight, Bell, Search,
   User, Cpu, Database, Calendar, Menu, X, ChevronDown, Activity,
-  Zap, Globe
+  Zap, Globe, Sun, Moon
 } from 'lucide-react'
 
 const navItems = [
@@ -14,7 +14,7 @@ const navItems = [
   { path: '/responses',   icon: Sparkles,          label: 'Response Generation' },
   { path: '/evaluation',  icon: BarChart3,          label: 'Evaluation Metrics' },
   { path: '/analytics',   icon: LineChart,          label: 'Analytics' },
-  { path: '/settings',    icon: Settings,           label: 'Settings' },
+  { path: '/settings',    icon: User,              label: 'User' },
 ]
 
 export default function Layout({ children }) {
@@ -22,8 +22,16 @@ export default function Layout({ children }) {
   const navigate = useNavigate()
   const [sidebarOpen, setSidebarOpen] = useState(true)
   const [notifOpen, setNotifOpen] = useState(false)
+  const [theme, setTheme] = useState(() => localStorage.getItem('theme') || 'dark')
 
   const currentPage = navItems.find(i => i.path === location.pathname)?.label || 'Dashboard'
+
+  useEffect(() => {
+    document.documentElement.classList.toggle('light', theme === 'light')
+    localStorage.setItem('theme', theme)
+  }, [theme])
+
+  const toggleTheme = () => setTheme(prev => (prev === 'dark' ? 'light' : 'dark'))
 
   return (
     <div className="flex h-screen overflow-hidden bg-surface-900">
@@ -36,8 +44,8 @@ export default function Layout({ children }) {
           </div>
           {sidebarOpen && (
             <div className="overflow-hidden">
-              <div className="font-display font-bold text-white text-sm leading-tight whitespace-nowrap">FeedbackAI</div>
-              <div className="text-[10px] text-brand-400 whitespace-nowrap">Intelligence Platform</div>
+              <div className="font-display font-bold text-white text-sm leading-tight whitespace-nowrap">FeedNora</div>
+              {/*<div className="text-[10px] text-brand-400 whitespace-nowrap">Intelligence Platform</div>*/}
             </div>
           )}
         </div>
@@ -64,7 +72,7 @@ export default function Layout({ children }) {
           })}
         </nav>
 
-        {/* Model Info */}
+        {/* Model Info 
         {sidebarOpen && (
           <div className="px-3 py-3 mx-2 mb-3 rounded-xl bg-surface-700/50 border border-white/5">
             <div className="flex items-center gap-2 mb-2">
@@ -77,7 +85,7 @@ export default function Layout({ children }) {
               <div>LR Classifier v3.1</div>
             </div>
           </div>
-        )}
+        )*/}
 
         {/* Collapse btn */}
         <button
@@ -107,17 +115,26 @@ export default function Layout({ children }) {
 
           <div className="flex-1" />
 
-          {/* Dataset pill */}
+          {/* Dataset pill 
           <div className="hidden md:flex items-center gap-2 px-3 py-1.5 bg-surface-700 rounded-lg border border-white/5">
             <Database size={12} className="text-brand-400" />
             <span className="text-[11px] text-slate-400">24,718 records</span>
-          </div>
+          </div>*/}
 
-          {/* Date range */}
+          <button
+            onClick={toggleTheme}
+            className="hidden md:flex items-center gap-2 px-3 py-1.5 bg-surface-700 rounded-lg border border-white/5 text-slate-400 hover:text-white hover:bg-surface-600 transition-colors"
+            title={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}
+          >
+            {theme === 'dark' ? <Sun size={12} className="text-accent-amber" /> : <Moon size={12} className="text-brand-500" />}
+            <span className="text-[11px]">{theme === 'dark' ? 'Light mode' : 'Dark mode'}</span>
+          </button>
+
+          {/* Date range 
           <div className="hidden md:flex items-center gap-2 px-3 py-1.5 bg-surface-700 rounded-lg border border-white/5 cursor-pointer hover:bg-surface-600 transition-colors">
             <Calendar size={12} className="text-slate-400" />
             <span className="text-[11px] text-slate-400">Aug 2024 — Mar 2025</span>
-          </div>
+          </div>*/}
 
           {/* Lang */}
           <div className="hidden lg:flex items-center gap-2 px-3 py-1.5 bg-surface-700 rounded-lg border border-white/5">
@@ -154,7 +171,7 @@ export default function Layout({ children }) {
             )}
           </div>
 
-          {/* Profile */}
+          {/* Profile 
           <div className="flex items-center gap-2.5 pl-3 border-l border-white/5 cursor-pointer">
             <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-brand-500 to-accent-cyan flex items-center justify-center text-white font-bold text-xs">
               RK
@@ -164,7 +181,7 @@ export default function Layout({ children }) {
               <div className="text-[10px] text-slate-500">SLIIT · Admin</div>
             </div>
             <ChevronDown size={13} className="text-slate-500 hidden md:block" />
-          </div>
+          </div>*/}
         </header>
 
         {/* Page Content */}

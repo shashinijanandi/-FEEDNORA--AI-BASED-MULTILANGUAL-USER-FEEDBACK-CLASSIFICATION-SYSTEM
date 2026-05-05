@@ -9,7 +9,7 @@ import { feedbackAPI } from '../api/client'
 
 const PIPELINE_STEPS = [
   { id: 'preprocess', label: 'Preprocessing Text',              sub: 'Tokenization · Stopword removal · Lemmatization',      icon: FileText  },
-  { id: 'topic',      label: 'Running Dynamic Topic Model',     sub: 'LDA scoring · keyword extraction · topic ranking',     icon: Brain     },
+  { id: 'topic',      label: 'Running Dynamic Topic Model',     sub: 'Keyword extraction · topic ranking',     icon: Brain     },
   { id: 'sentiment',  label: 'Detecting Sentiment',             sub: 'sentiment_model.pkl → LR classifier · TF-IDF features',icon: BarChart2 },
   { id: 'generate',   label: 'Generating Intelligent Response', sub: 'Context-conditioned response template + T5 beam search',icon: Sparkles  },
   { id: 'evaluate',   label: 'Evaluating Response Quality',     sub: 'BLEU · ROUGE-L · Semantic similarity scoring',         icon: Zap       },
@@ -101,10 +101,10 @@ export default function SubmitFeedback() {
     <div className="p-6 animate-fade-in">
       <div className="mb-6">
         <h1 className="font-display text-2xl font-bold text-white tracking-tight">Submit & Analyze Feedback</h1>
-        <p className="text-sm text-slate-500 mt-1">
+        {/*p className="text-sm text-slate-500 mt-1">
           Live pipeline: your <span className="font-mono text-brand-400">sentiment_model.pkl</span> →
           Dynamic LDA → Response Generation → BLEU/ROUGE Evaluation
-        </p>
+        </p*/}
       </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
@@ -157,7 +157,7 @@ export default function SubmitFeedback() {
               className="btn-primary w-full justify-center py-3 disabled:opacity-50 disabled:cursor-not-allowed">
               {analyzing
                 ? <><div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"/>Calling API…</>
-                : <><Send size={15}/>Analyze with Your Model</>}
+                : <><Send size={15}/>Analyze</>}
             </button>
 
             {error && (
@@ -266,7 +266,6 @@ export default function SubmitFeedback() {
             <div className="card p-5">
               <div className="flex items-center gap-2 mb-4">
                 <div className="label">② Dynamic Topic Modeling</div>
-                <span className="text-[10px] font-mono text-slate-600">keyword-LDA scoring</span>
               </div>
               <div className="flex items-center justify-between mb-3">
                 <div>
@@ -275,9 +274,7 @@ export default function SubmitFeedback() {
                     Probability: <span className="text-accent-cyan font-medium">{results.topic.probability.toFixed(1)}%</span>
                   </div>
                 </div>
-                <div className="px-3 py-1.5 bg-accent-cyan/10 border border-accent-cyan/20 rounded-xl">
-                  <span className="text-xs text-accent-cyan font-medium">Dynamic LDA</span>
-                </div>
+                
               </div>
 
               {results.topic.keywords?.length > 0 && (
